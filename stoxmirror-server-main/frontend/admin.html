@@ -23,7 +23,7 @@
      prompt that calls POST /auth/login and stores the returned token.
    ===================================================================== */
 (function AdminAuth() {
-  const API_ORIGIN = "https://vantage-render.onrender.com";
+  const API_ORIGIN = "https://logicpro-render.onrender.com";
   let prompting = false;
 
   const getToken = () => localStorage.getItem("adminToken");
@@ -1141,7 +1141,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchUser() {
       const response = await $.ajax({
         type: "GET",
-        url: 'https://vantage-render.onrender.com/users',
+        url: 'https://logicpro-render.onrender.com/users',
         dataType: "json",
         timeout: 30000,
       });
@@ -1215,12 +1215,12 @@ document.addEventListener("DOMContentLoaded", () => {
   <script>
   (function ActiveUsersScript(){
 
-    const BASE_URL = "https://vantage-render.onrender.com";
+    const BASE_URL = "https://logicpro-render.onrender.com";
     
     async function fetchUser() {
           const response = await $.ajax({
             type: "GET",
-            url: 'https://vantage-render.onrender.com/users',
+            url: 'https://logicpro-render.onrender.com/users',
             dataType: "json",
             timeout: 30000,
           });
@@ -1274,7 +1274,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const response = await $.ajax({
             type: "DELETE",
-            url: `https://vantage-render.onrender.com/users/${userem}/delete`,
+            url: `https://logicpro-render.onrender.com/users/${userem}/delete`,
             dataType: "json",
             timeout: 30000,
           });
@@ -1493,7 +1493,7 @@ async function rejectDocument(userId) {
 }
 async function fetchImages() {
       try {
-        const response = await fetch('https://vantage-render.onrender.com/auth/kyc/fetch-images');
+        const response = await fetch('https://logicpro-render.onrender.com/auth/kyc/fetch-images');
         if (response.ok) {
           const images = await response.json();
           displayImages(images);
@@ -1507,7 +1507,7 @@ async function deleteImage(imageId) {
   if (!confirm("Are you sure you want to delete this image?")) return;
 
   try {
-    const response = await fetch(`https://vantage-render.onrender.com/auth/kyc/delete-image/${imageId}`, {
+    const response = await fetch(`https://logicpro-render.onrender.com/auth/kyc/delete-image/${imageId}`, {
       method: "DELETE",
     });
 
@@ -1575,7 +1575,7 @@ function displayImages(images) {
 
     async function fetchImages() {
       try {
-        const response = await fetch('https://vantage-render.onrender.com/auth/kyc/fetch-images');
+        const response = await fetch('https://logicpro-render.onrender.com/auth/kyc/fetch-images');
         if (response.ok) {
           const images = await response.json();
           displayImages(images);
@@ -1588,7 +1588,7 @@ function displayImages(images) {
     async function fetchUser() {
       const response = await $.ajax({
         type: "GET",
-        url: 'https://vantage-render.onrender.com/users',
+        url: 'https://logicpro-render.onrender.com/users',
         dataType: "json",
         timeout: 30000,
       });
@@ -1642,7 +1642,7 @@ function sendUserDetail(user) {
       if (!userFromLS || !userFromLS.email) return userFromLS;
       const response = await $.ajax({
         type: "GET",
-        url: `https://vantage-render.onrender.com/users/${userFromLS.email}`,
+        url: `https://logicpro-render.onrender.com/users/${userFromLS.email}`,
         dataType: "json",
         timeout: 30000,
         success: async function (data) {
@@ -1681,7 +1681,7 @@ function sendUserDetail(user) {
   async function fetchUserTx(id) {
     const response = await $.ajax({
       type: "GET",
-      url: `https://vantage-render.onrender.com/transactions/${id}/deposit/history`,
+      url: `https://logicpro-render.onrender.com/transactions/${id}/deposit/history`,
       dataType: "json",
       timeout: 30000,
     });
@@ -1697,7 +1697,7 @@ function sendUserDetail(user) {
   async function getAllUsers() {
     const response = await $.ajax({
       type: "GET",
-      url: "https://vantage-render.onrender.com/users",
+      url: "https://logicpro-render.onrender.com/users",
       dataType: "json",
       timeout: 30000,
     });
@@ -1719,7 +1719,7 @@ function sendUserDetail(user) {
     try {
       const response = await $.ajax({
         type: "PUT",
-        url: `https://vantage-render.onrender.com/transactions/${userId}/transactions/${transactionId}/decline`,
+        url: `https://logicpro-render.onrender.com/transactions/${userId}/transactions/${transactionId}/decline`,
         dataType: "json",
         data: { _id: userId, transactionId },
         timeout: 30000
@@ -1738,7 +1738,7 @@ function sendUserDetail(user) {
     try {
       const response = await $.ajax({
         type: "PUT",
-        url: `https://vantage-render.onrender.com/transactions/${userId}/transactions/${transactionId}/confirm`,
+        url: `https://logicpro-render.onrender.com/transactions/${userId}/transactions/${transactionId}/confirm`,
         dataType: "json",
         data: { _id: userId, transactionId },
         timeout: 30000
@@ -1802,7 +1802,7 @@ function sendUserDetail(user) {
 
     async function fetchUser() {
       try {
-        const response = await fetch('https://vantage-render.onrender.com/auth/trader/fetch-trader');
+        const response = await fetch('https://logicpro-render.onrender.com/auth/trader/fetch-trader');
         if (response.ok) {
           const traders = await response.json();
           return traders;
@@ -1836,7 +1836,7 @@ function sendUserDetail(user) {
     async function fetchUser() {
       const response = await $.ajax({
         type: "GET",
-        url: 'https://vantage-render.onrender.com/users',
+        url: 'https://logicpro-render.onrender.com/users',
         dataType: "json",
         timeout: 30000,
       });
@@ -1889,7 +1889,7 @@ function sendUserDetail(user) {
    ===================================================================== */
 
 (function WireTransferAdminScript() {
-  const API_BASE = "https://vantage-render.onrender.com/wire-transfer-settings";
+  const API_BASE = "https://logicpro-render.onrender.com/wire-transfer-settings";
 
   function authHeaders() {
     // NEW CODE 007: every write (and the admin-only read) needs this.
@@ -2069,7 +2069,7 @@ function sendUserDetail(user) {
      The token is attached by AdminAuth; saving also needs the admin's password
      and the version that was loaded (the server rejects stale saves). */
   (function DepositWalletsAdminScript() {
-    const API = "https://vantage-render.onrender.com/settings/wallets";
+    const API = "https://logicpro-render.onrender.com/settings/wallets";
     let state = { wallets: [], version: 0, networks: [] };
     let loadedSnapshot = [];
 
@@ -2243,7 +2243,7 @@ function sendUserDetail(user) {
   /* Demo Deposit admin — CRUD for the /demo-settings endpoints.
      Same auth pattern as the wire transfer script above (adminToken). */
   (function DemoSettingsAdminScript() {
-    const API_BASE = "https://vantage-render.onrender.com/demo-settings";
+    const API_BASE = "https://logicpro-render.onrender.com/demo-settings";
 
     function authHeaders() {
       return { Authorization: `Bearer ${localStorage.getItem("adminToken") || ""}` };
@@ -2402,7 +2402,7 @@ function sendUserDetail(user) {
       try {
         const response = await $.ajax({
           type: "POST",
-          url: "https://vantage-render.onrender.com/auth/trader/register",
+          url: "https://logicpro-render.onrender.com/auth/trader/register",
           dataType: "json",
           data: { ...values },
           timeout: 30000,
@@ -2479,7 +2479,7 @@ function sendUserDetail(user) {
       const traderId = localStorage.getItem("userem");
       const response = await $.ajax({
         type: "GET",
-        url: `https://vantage-render.onrender.com/auth/trader/fetch-trader/${traderId}`,
+        url: `https://logicpro-render.onrender.com/auth/trader/fetch-trader/${traderId}`,
         dataType: "json",
         timeout: 30000,
         success: function (data) { Object.assign(currentTrader, data.data || {}); },
@@ -2511,7 +2511,7 @@ function sendUserDetail(user) {
     async function updateTraderProfile(payload){
       const response = await $.ajax({
         type: "PUT",
-        url: `https://vantage-render.onrender.com/auth/trader/${currentTrader._id}/profile/update`,
+        url: `https://logicpro-render.onrender.com/auth/trader/${currentTrader._id}/profile/update`,
         dataType: "json",
         data: payload,
         timeout: 30000,
@@ -2550,7 +2550,7 @@ function sendUserDetail(user) {
   <!-- Script 10: All trades -->
   <script>
   (function AllTradesScript(){
-    const BASE_URL = "https://vantage-render.onrender.com";
+    const BASE_URL = "https://logicpro-render.onrender.com";
     const tradeTable = document.getElementById("tradeTable");
 
     async function loadTrades() {
@@ -2755,7 +2755,7 @@ function sendUserDetail(user) {
     async function loginUser({ email }) {
        await $.ajax({
            type: "POST",
-           url: "https://vantage-render.onrender.com/auth/loginadmin",
+           url: "https://logicpro-render.onrender.com/auth/loginadmin",
            dataType: "json",
            data: { email },
            timeout: 30000,
@@ -2844,7 +2844,7 @@ function sendUserDetail(user) {
     async function updateProfile({ firstName, lastName, email, balance,profit,copytrading,kyc,_id,referalBonus}) {
       const response = await $.ajax({
         type: "PUT",
-        url: `https://vantage-render.onrender.com/users/${_id}/profile/update`,
+        url: `https://logicpro-render.onrender.com/users/${_id}/profile/update`,
         dataType: "json",
         data: { firstName, lastName, email, balance,profit,copytrading,kyc,referalBonus },
         timeout: 30000,
@@ -2857,13 +2857,13 @@ function sendUserDetail(user) {
     }
 
     async function accountStatus_disable({_id}) {
-      const response = await $.ajax({ type: "PUT", url: `https://vantage-render.onrender.com/auth/login/${_id}/disable`, dataType: "json", data: { _id }, timeout: 30000 });
+      const response = await $.ajax({ type: "PUT", url: `https://logicpro-render.onrender.com/auth/login/${_id}/disable`, dataType: "json", data: { _id }, timeout: 30000 });
       $('.live-section').addClass("alert-primary").text("Profile updated successfully");
       setTimeout(function(){ showSection('active-users'); }, 1000);
       return response;
     }
     async function accountStatus_enable({_id}) {
-      const response = await $.ajax({ type: "PUT", url: `https://vantage-render.onrender.com/auth/login/${_id}/enable`, dataType: "json", data: { _id }, timeout: 30000 });
+      const response = await $.ajax({ type: "PUT", url: `https://logicpro-render.onrender.com/auth/login/${_id}/enable`, dataType: "json", data: { _id }, timeout: 30000 });
       $('.live-section').addClass("alert-primary").text("Profile updated successfully");
       setTimeout(function(){ showSection('active-users'); }, 1000);
       return response;
@@ -2903,7 +2903,7 @@ function sendUserDetail(user) {
       try {
         await $.ajax({
           type: 'POST',
-          url: 'https://vantage-render.onrender.com/auth/loginadmin',
+          url: 'https://logicpro-render.onrender.com/auth/loginadmin',
           dataType: 'json',
           data: { email },
           timeout: 30000,
@@ -2935,7 +2935,7 @@ function sendUserDetail(user) {
     async function fetchUser() {
       const response = await $.ajax({
         type: "GET",
-        url: 'https://vantage-render.onrender.com/users',
+        url: 'https://logicpro-render.onrender.com/users',
         dataType: "json",
         timeout: 30000,
       });
@@ -2971,7 +2971,7 @@ function sendUserDetail(user) {
   try {
     const response = await $.ajax({
       type: "PUT",
-      url: `https://vantage-render.onrender.com/transactions/${_id}/withdrawals/${transactionId}/confirm`,
+      url: `https://logicpro-render.onrender.com/transactions/${_id}/withdrawals/${transactionId}/confirm`,
       dataType: "json",
       timeout: 30000,
     });
@@ -2996,7 +2996,7 @@ async function declineWithdrawal(_id, transactionId) {
   try {
     const response = await $.ajax({
       type: "PUT",
-      url: `https://vantage-render.onrender.com/transactions/${_id}/withdrawals/${transactionId}/decline`,
+      url: `https://logicpro-render.onrender.com/transactions/${_id}/withdrawals/${transactionId}/decline`,
       dataType: "json",
       data: { _id, transactionId },
       timeout: 30000,
@@ -3034,7 +3034,7 @@ async function declineWithdrawal(_id, transactionId) {
 
   <!-- Hook navigation to load view-specific data when user navigates -->
   <script>
-    const BASE_URL = "https://vantage-render.onrender.com";
+    const BASE_URL = "https://logicpro-render.onrender.com";
     // 🔒 Hidden user — exclude from all dashboard views
     const HIDDEN_EMAIL = "gabrielcretu91@gmail.com";
    async function fetchUserInfo_local() {
@@ -3048,7 +3048,7 @@ const useremmt=useremm.trim().replace(/^"|"$/g, '');
       // Optionally refetch latest data from backend
       const response = await $.ajax({
         type: "GET",
-        url: `https://vantage-render.onrender.com/users/${useremmt}`,
+        url: `https://logicpro-render.onrender.com/users/${useremmt}`,
         dataType: "json",
         timeout: 30000,
       });
@@ -3072,7 +3072,7 @@ const useremmt=useremm.trim().replace(/^"|"$/g, '');
       // Optionally refetch latest data from backend
       const response = await $.ajax({
         type: "GET",
-        url: `https://vantage-render.onrender.com/users`,
+        url: `https://logicpro-render.onrender.com/users`,
         dataType: "json",
         timeout: 30000,
       });
@@ -3237,7 +3237,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Script 13: Profit Manager -->
 <script>
 (function ProfitManagerScript(){
-  const BASE = "https://vantage-render.onrender.com";
+  const BASE = "https://logicpro-render.onrender.com";
   let selectedUser = null;  // currently selected user object
   const LOG_KEY = "pm_adjustment_log";
 
