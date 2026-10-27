@@ -1,0 +1,3047 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vantagestonks - Copy Trading & Investment Platform</title>
+    <meta name="description" content="Advanced copy trading platform with real-time forex, crypto, and stock trading. Follow master traders and grow your portfolio with vantagestonks.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Deposit-address QR codes are drawn locally, so addresses never go to a third-party QR service -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+    <style>
+/* ============================================================
+   vantagestonks — REDESIGN: INDUSTRIAL DARK + BURNT ORANGE
+   Aesthetic: Precision financial tool. Sharp edges, strong
+   typographic hierarchy, data-forward layout. Feels like
+   Bloomberg meets a boutique trading house.
+   ============================================================ */
+
+/* Override font stacks */
+body, .app, .sidebar, .header, .nav-link, .btn, .tab,
+.card, .modal, input, select, textarea {
+  font-family: 'DM Sans', system-ui, sans-serif !important;
+}
+
+.logo-text, .hero-title, .stat-value, .trade-intro h3,
+.modal-header h2, h1, h2, h3 {
+  font-family: 'Syne', sans-serif !important;
+  letter-spacing: -0.02em;
+}
+
+.pair-price, .trade-price, .stat-card .stat-value,
+.footer-stat-value {
+  font-family: 'DM Mono', monospace !important;
+}
+
+/* ---- Dark theme overrides ---- */
+.dark {
+  --background: 220, 18%, 6%;
+  --foreground: 220 5% 93%;
+  --border: 220 16% 16%;
+  --card: 220 18% 10%;
+  --card-foreground: 220 5% 93%;
+  --card-border: 220 16% 15%;
+  --card-border-hover: 25, 98%, 54%;
+  --sidebar: 220, 18%, 5%;
+  --sidebar-foreground: 220 5% 93%;
+  --sidebar-border: 220 16% 13%;
+}
+
+/* ---- Body & App Shell ---- */
+body {
+  background-color: hsl(220, 18%, 6%);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(253,126,20,0.06) 0%, transparent 70%);
+}
+
+/* ---- Sidebar Redesign ---- */
+.sidebar {
+  width: 240px;
+  background: hsl(220, 20%, 5%);
+  border-right: 1px solid hsl(220, 16%, 12%);
+  position: relative;
+}
+
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom, #0fef9e 0%, transparent 40%);
+  pointer-events: none;
+}
+
+.sidebar-header {
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid hsl(220, 16%, 12%);
+}
+
+.logo-text {
+  font-size: 1.1rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  color: hsl(var(--foreground));
+}
+
+/* Nav labels */
+.nav-section-label {
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  color: #0fef9e !important;
+  padding: 0.4rem 0.75rem !important;
+  opacity: 0.85;
+}
+
+/* Nav links */
+.nav-link {
+  border-radius: 6px !important;
+  padding: 0.55rem 0.75rem !important;
+  transition: all 0.15s ease !important;
+  gap: 0.65rem !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  color: hsl(220, 5%, 60%) !important;
+  position: relative;
+}
+
+.nav-link:hover {
+  background-color: hsl(220, 18%, 12%) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.nav-link.active {
+  background: linear-gradient(90deg, rgba(253,126,20,0.12) 0%, rgba(253,126,20,0.04) 100%) !important;
+  color: #0fef9e !important;
+  font-weight: 600 !important;
+}
+
+.nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  height: 60%;
+  width: 2px;
+  background: #0fef9e;
+  border-radius: 0 2px 2px 0;
+}
+
+.nav-icon {
+  opacity: 0.7;
+}
+
+.nav-link.active .nav-icon,
+.nav-link:hover .nav-icon {
+  opacity: 1;
+}
+
+/* Avatar */
+.avatar {
+  background: linear-gradient(135deg, #0fef9e, #e8620c) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 0.7rem !important;
+}
+
+.sidebar-footer {
+  border-top: 1px solid hsl(220, 16%, 12%) !important;
+}
+
+.user-name {
+  font-weight: 600 !important;
+  font-size: 0.82rem !important;
+}
+
+/* ---- Header ---- */
+.header {
+  background: hsl(220, 18%, 6%);
+  border-bottom: 1px solid hsl(220, 16%, 12%);
+  padding: 0.75rem 1.5rem !important;
+  backdrop-filter: blur(12px);
+}
+
+/* ---- Cards Redesign ---- */
+.card {
+  background: hsl(220, 18%, 9%) !important;
+  border: 1px solid hsl(220, 16%, 14%) !important;
+  border-radius: 10px !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.card:hover {
+  border: 1px solid rgba(253, 126, 20, 0.35) !important;
+  box-shadow: 0 0 0 1px rgba(253, 126, 20, 0.1), 0 8px 24px rgba(0,0,0,0.35) !important;
+  padding: 1.5rem !important;
+}
+
+/* Stat cards */
+.stat-card {
+  background: hsl(220, 18%, 9%) !important;
+  border: 1px solid hsl(220, 16%, 14%) !important;
+  border-radius: 10px !important;
+  padding: 1.5rem !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #0fef9e, transparent);
+  opacity: 0.6;
+}
+
+.stat-card .stat-value {
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  background: linear-gradient(135deg, #fff 60%, rgba(255,255,255,0.6));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-card .stat-label {
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  font-weight: 600 !important;
+  color: hsl(220, 10%, 50%) !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  border-radius: 6px !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  transition: all 0.2s !important;
+}
+
+.btn-primary {
+  background: #0fef9e !important;
+  color: #fff !important;
+  box-shadow: 0 2px 12px rgba(253, 126, 20, 0.3) !important;
+}
+
+.btn-primary:hover {
+  background: #e8620c !important;
+  box-shadow: 0 4px 20px rgba(253, 126, 20, 0.4) !important;
+  opacity: 1 !important;
+  transform: translateY(-1px);
+}
+
+.btn-buy {
+  background: linear-gradient(135deg, #16a34a, #15803d) !important;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25) !important;
+}
+
+.btn-sell {
+  background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25) !important;
+}
+
+/* ---- Tabs ---- */
+.tab {
+  border-radius: 6px !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  color: hsl(220, 5%, 55%) !important;
+  transition: all 0.15s !important;
+}
+
+.tab:hover {
+  background: hsl(220, 18%, 13%) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.tab.active {
+  background: #0fef9e !important;
+  color: #fff !important;
+  box-shadow: 0 2px 12px rgba(253,126,20,0.3) !important;
+}
+
+/* ---- Inputs ---- */
+.input, input, select {
+  background: hsl(220, 20%, 8%) !important;
+  border: 1px solid hsl(220, 16%, 16%) !important;
+  border-radius: 6px !important;
+  color: hsl(var(--foreground)) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.875rem !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.input:focus, input:focus, select:focus {
+  border-color: #0fef9e !important;
+  box-shadow: 0 0 0 3px rgba(253,126,20,0.12) !important;
+  outline: none !important;
+}
+
+/* ---- Hero Banner ---- */
+.hero-banner {
+  background: linear-gradient(135deg, hsl(220, 20%, 10%), hsl(220, 20%, 8%)) !important;
+  border: 1px solid hsl(220, 16%, 15%) !important;
+  border-radius: 12px !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-banner::after {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(253,126,20,0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.hero-title {
+  font-size: 1.6rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.2 !important;
+}
+
+.text-primary {
+  color: #0fef9e !important;
+}
+
+/* ---- Tables ---- */
+thead {
+  border-bottom: 1px solid hsl(220, 16%, 14%) !important;
+}
+
+th {
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: hsl(220, 10%, 45%) !important;
+}
+
+tbody tr {
+  border-bottom: 1px solid hsl(220, 16%, 11%) !important;
+}
+
+tbody tr:hover {
+  background: rgba(253,126,20,0.04) !important;
+}
+
+/* ---- Badge ---- */
+.badge {
+  background: hsl(220, 18%, 15%) !important;
+  border: 1px solid hsl(220, 16%, 20%) !important;
+  border-radius: 4px !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* ---- Modal ---- */
+.modal-content {
+  background: hsl(220, 20%, 9%) !important;
+  border: 1px solid hsl(220, 16%, 16%) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7) !important;
+}
+
+.modal-header {
+  border-bottom: 1px solid hsl(220, 16%, 14%) !important;
+}
+
+.modal-header h2 {
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+}
+
+/* ---- Spinner ---- */
+.spinner {
+  border: 4px solid hsl(220, 16%, 18%) !important;
+  border-top: 4px solid #0fef9e !important;
+  width: 48px !important;
+  height: 48px !important;
+}
+
+/* ---- Trading card ---- */
+.trading-card {
+  background: hsl(220, 20%, 9%) !important;
+  border: 1px solid hsl(220, 16%, 16%) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+}
+
+/* ---- Copy btn ---- */
+.copy-btn, .history-btn {
+  background: #0fef9e !important;
+  color: #fff !important;
+  box-shadow: 0 2px 12px rgba(253,126,20,0.3) !important;
+  border-radius: 6px !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-weight: 600 !important;
+}
+
+.copy-btn:hover, .history-btn:hover {
+  background: #e8620c !important;
+  color: #fff !important;
+  opacity: 1 !important;
+  transform: translateY(-1px);
+}
+
+/* ---- Reward icon ---- */
+.reward-icon {
+  background: rgba(253,126,20,0.1) !important;
+  color: #0fef9e !important;
+}
+
+/* ---- Leverage buttons ---- */
+.leverage-buttons button {
+  background: hsl(220, 18%, 15%) !important;
+  border: 1px solid hsl(220, 16%, 20%) !important;
+  color: hsl(var(--foreground)) !important;
+  border-radius: 5px !important;
+  font-family: 'DM Mono', monospace !important;
+  font-size: 0.75rem !important;
+}
+
+.leverage-buttons button.active {
+  background: #0fef9e !important;
+  color: #fff !important;
+  border-color: #0fef9e !important;
+  box-shadow: 0 0 10px rgba(253,126,20,0.3) !important;
+}
+
+/* ---- Page heading polish ---- */
+h2 {
+  font-family: 'Syne', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.page-title {
+  font-family: 'Syne', sans-serif !important;
+  font-size: 1.4rem !important;
+  font-weight: 800 !important;
+}
+
+/* ---- Pair price ---- */
+.pair-price {
+  font-size: 1.35rem !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* ---- Footer accent ---- */
+.footer-col-title {
+  color: #0fef9e !important;
+}
+
+.footer-stat-value {
+  color: #0fef9e !important;
+}
+
+.footer-social-link:hover {
+  border-color: #0fef9e !important;
+  color: #0fef9e !important;
+  background: rgba(253,126,20,0.08) !important;
+}
+
+.footer-link-list a:hover {
+  color: #0fef9e !important;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(220, 18%, 7%);
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(220, 16%, 20%);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0fef9e;
+}
+
+/* ---- WhatsApp widget ---- */
+.whatsapp-widget {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+}
+
+/* ---- Selection ---- */
+::selection {
+  background: rgba(253,126,20,0.25);
+  color: #fff;
+}
+
+/* ---- Smooth scrolling ---- */
+html { scroll-behavior: smooth; }
+
+
+:root {
+  --background: 220 5% 96%;
+  --foreground: 220 10% 12%;
+  --border: 220 8% 88%;
+  --card: 220 5% 94%;
+  --card-foreground: 220 10% 12%;
+  --card-border: 220 8% 86%;
+
+   --card-border-hover:158, 88%, 50%;
+  --sidebar: 220 6% 92%;
+  --sidebar-foreground: 220 10% 12%;
+  --sidebar-border: 220 8% 84%;
+  --primary: 215 95% 50%;
+  --primary-foreground: 220 5% 98%;
+  --secondary: 220 8% 86%;
+  --secondary-foreground: 220 10% 15%;
+  --muted: 220 10% 89%;
+  --muted-foreground: 220 8% 35%;
+  --accent: 220 12% 87%;
+   --accentt:  0 0% 0%;
+   --accenttt: 25 98% 54%;
+  --accent-foreground: 220 10% 15%;
+  --destructive: 0 75% 45%;
+  --destructive-foreground: 0 5% 98%;
+  --chart-1: 215 95% 45%;
+  --chart-2: 145 65% 40%;
+  --chart-3: 0 75% 45%;
+  --chart-4: 38 92% 48%;
+}
+
+.dark {
+  --background: 0, 0%, 2%;
+  --foreground: 220 5% 95%;
+  --border: 220 15% 20%;
+  --card: 220 20% 12%;
+  --card-foreground: 220 5% 95%;
+  --card-border: 220 15% 22%;
+  --sidebar:0, 0%, 2%;
+
+  --sidebar-foreground: 220 5% 95%;
+  --sidebar-border: 220 15% 24%;
+  --primary: 230, 91%, 49%;
+  --primary-foreground: 220 5% 98%;
+  --secondary: 220 15% 22%;
+  --secondary-foreground: 220 5% 95%;
+  --muted: 220 12% 20%;
+  --muted-foreground: 220 10% 65%;
+  --accent: 220 15% 19%;
+   --accentt: 220 12% 87%;
+    --accenttt: 25 98% 54%;
+  --accent-foreground: 220 5% 95%;
+  --destructive: 0 75% 55%;
+  --destructive-foreground: 0 5% 98%;
+  --chart-1: 215 95% 65%;
+  --chart-2: 145 65% 55%;
+  --chart-3: 0 75% 60%;
+  --chart-4: 38 92% 58%;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'IBM Plex Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+
+.app {
+    min-height: 100dvh; /* modern mobile-safe viewport */
+    display: flex;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 256px;
+  background-color: hsl(var(--sidebar));
+  border-right: 1px solid hsl(var(--sidebar-border));
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+}
+
+.sidebar.collapsed {
+  transform: translateX(-100%);
+}
+
+.sidebar-header {
+  padding: 1.5rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-close {
+  display: none;
+  width: 2rem;
+  height: 2rem;
+  padding: 0.25rem;
+  background: transparent;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-close:hover {
+  background-color: hsl(var(--accent));
+}
+
+.sidebar-close svg {
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .sidebar-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-icon {
+  width: 2rem;
+  height: 2rem;
+  padding: 0.25rem;
+  background-color:#0fef9e;
+  color: hsl(var(--primary-foreground));
+  border-radius: 0.375rem;
+}
+
+.logo-text {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 0.5rem;
+}
+
+.nav-section {
+  margin-bottom: 1.5rem;
+}
+
+.nav-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color:#0fef9e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: 0.375rem;
+  color: hsl(var(--sidebar-foreground));
+  text-decoration: none;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.nav-link:hover {
+  background-color: hsl(var(--accent));
+}
+
+.nav-link.active {
+  background-color: hsl(var(--accent));
+  font-weight: 500;
+}
+
+.nav-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.nav-link span:first-of-type {
+  flex: 1;
+}
+
+.nav-emoji {
+  font-size: 0.875rem;
+}
+
+.sidebar-footer {
+  padding: 0.5rem;
+  border-top: 1px solid hsl(var(--sidebar-border));
+}
+
+.avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color:#0fef9e;
+  color: hsl(var(--primary-foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.user-subtitle {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Main Content */
+/* .main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+} */
+
+.main-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.header-spacer {
+  flex: 1;
+}
+
+.sidebar-toggle,
+.theme-toggle {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  border-radius: 0.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.sidebar-toggle:hover,
+.theme-toggle:hover {
+  background-color: hsl(var(--accent));
+}
+
+.sidebar-toggle svg,
+.theme-toggle svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.theme-toggle .sun-icon {
+  display: none;
+}
+
+.theme-toggle .moon-icon {
+  display: block;
+}
+
+:root:not(.dark) .theme-toggle .sun-icon {
+  display: block;
+}
+
+:root:not(.dark) .theme-toggle .moon-icon {
+  display: none;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* Cards */
+.card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.card:hover {
+  background-color: hsl(var(--card));
+  border:3px solid hsl(var(--card-border-hover));
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  
+}
+
+.card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* Trading Pair Card */
+.trading-pair-card {
+  padding: 1rem;
+}
+
+.pair-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.pair-info h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.pair-info p {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.pair-change {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.pair-change.positive {
+  color: hsl(var(--chart-2));
+}
+
+.pair-change.negative {
+  color: hsl(var(--chart-3));
+}
+
+.pair-price {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pair-chart {
+  height: 48px;
+  margin: 1rem -0.5rem;
+  background: linear-gradient(to bottom, hsl(var(--chart-2) / 0.2), transparent);
+  border-radius: 0.25rem;
+}
+
+.pair-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background-color:#0fef9e;
+  color: hsl(var(--primary-foreground));
+}
+
+.btn-buy {
+  background-color: hsl(var(--chart-2));
+  color: white;
+}
+
+.btn-sell {
+  background-color: hsl(var(--chart-3));
+  color: white;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* Master Trader Card */
+.trader-card {
+  padding: 1.5rem;
+}
+
+.trader-header {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.trader-avatar {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: hsl(var(--muted));
+}
+
+.trader-info h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.trader-rating {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1rem 0;
+}
+
+.star {
+  width: 1rem;
+  height: 1rem;
+  color: #fbbf24;
+  fill: currentColor;
+}
+
+.star.empty {
+  color: hsl(var(--muted));
+  fill: currentColor;
+}
+
+.trader-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.trader-pnl {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: hsl(var(--muted) / 0.3);
+  border-radius: 0.375rem;
+}
+
+.pnl-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: hsl(var(--chart-2));
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+}
+
+.input:focus {
+  outline: none;
+  border-color:#0fef9e;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+}
+
+select.input {
+  cursor: pointer;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background-color: hsl(var(--card));
+  border-radius: 0.5rem;
+  width: 90%;
+  max-width: 28rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-lg {
+  max-width: 32rem;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: hsl(var(--foreground));
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.trade-price {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tabs */
+.tabs {
+  margin-bottom: 1.5rem;
+}
+
+.tabs-list {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: none;
+  border-radius: 0.375rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  background-color: hsl(var(--accent));
+}
+
+.tab.active {
+  background-color:#0fef9e;
+  color: hsl(var(--primary-foreground));
+}
+
+/* Hero Banner */
+.hero-banner {
+  background: linear-gradient(135deg, hsl(var(--card)), hsl(var(--accent)));
+  border: 1px solid hsl(var(--card-border));
+  border-radius: 0.75rem;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.05), transparent);
+  pointer-events: none;
+}
+
+.hero-banner > * {
+  position: relative;
+}
+
+.hero-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.text-primary {
+  color:#0fef9e;
+}
+
+.text-muted {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+}
+
+.small {
+  font-size: 0.75rem;
+}
+
+/* Tables */
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+th {
+  text-align: left;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+td {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+}
+
+tbody tr {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+tbody tr:hover {
+  background-color: hsl(var(--accent) / 0.3);
+}
+
+.trader-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.copy-notice {
+  padding: 1rem;
+  background-color: hsl(var(--primary) / 0.1);
+  border: 1px solid hsl(var(--primary) / 0.2);
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+  }
+  
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  padding: 1.5rem;
+}
+
+.stat-card .stat-label {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.stat-card .stat-value {
+  font-size: 1.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Live Stream */
+.live-stream-container {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+}
+
+.video-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.15;
+  filter: blur(2px);
+}
+
+.stream-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, hsl(var(--background) / 0.95), hsl(var(--card) / 0.95));
+  padding: 2rem;
+  text-align: center;
+}
+
+.stream-overlay svg {
+  width: 4rem;
+  height: 4rem;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 1.5rem;
+}
+
+.stream-overlay h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.stream-overlay p {
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 1.5rem;
+  max-width: 500px;
+}
+
+/* Referral Code */
+.referral-code {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.referral-code input {
+  flex: 1;
+  max-width: 300px;
+}
+
+.copy-btn {
+  padding: 0.625rem 1rem;
+  background-color:#0fef9e;
+  color: hsl(var(--primary-foreground));
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.copy-btn:hover {
+  opacity: 0.9;
+}
+
+/* Rewards */
+.reward-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.reward-card:hover {
+  background-color: hsl(var(--accent));
+}
+
+.reward-icon {
+  width: 3rem;
+  height: 3rem;
+  background-color: hsl(var(--primary) / 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color:#0fef9e;
+}
+
+.reward-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.reward-info {
+  flex: 1;
+}
+
+.reward-info h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.reward-info p {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.reward-amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: hsl(var(--chart-2));
+}
+
+.claimed {
+  opacity: 0.5;
+}
+
+.claimed .reward-amount {
+  color: hsl(var(--muted-foreground));
+}
+
+
+/* ========= TRADE PAGE LAYOUT ========= */
+.trade-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 30px;
+  width: 100%;
+  padding: 30px 20px;
+  font-family: 'Inter', sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  min-height: 100vh;
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+/* ========= INTRO SECTION ========= */
+/* Trade Intro Section */
+.trade-intro {
+  max-width: 800px;
+  text-align: center;
+  color: hsl(var(--foreground)); /* text color adapts to theme */
+  animation: fadeUp 1s ease forwards;
+}
+
+.trade-intro h3 {
+  font-size: 28px;
+  font-weight: 700;
+  color: hsl(var( --accentt)); /* accent color from theme */
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+.trade-intro p {
+  font-size: 16px;
+  color: hsl(var(--muted-foreground)); /* muted text from theme */
+  line-height: 1.6;
+  margin: 0 auto;
+  max-width: 700px;
+}
+
+
+/* ========= TRADINGVIEW WIDGET ========= */
+.tv-widget {
+  width: 100%;
+  max-width: 900px;
+  height: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 25px rgba(0,0,0,0.25);
+  animation: fadeUp 1.2s ease forwards;
+}
+
+/* ========= TRADING CARD ========= */
+.trading-card {
+  width: 100%;
+  max-width: 500px;
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border-radius: 14px;
+  padding: 25px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.35);
+  animation: fadeUp 1.4s ease forwards;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.trading-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* ========= CARD HEADER ========= */
+.trading-card .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.trading-card .header .balance {
+  font-size: 15px;
+  color: hsl(var(--accenttt));
+}
+
+.trading-card .header .live {
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  animation: pulse 2s infinite;
+}
+
+/* ========= FORM ELEMENTS ========= */
+.trading-card label {
+  display: block;
+  margin-top: 12px;
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+.trading-card input,
+.trading-card select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  transition: border 0.3s ease, background 0.3s ease;
+}
+
+.trading-card input:focus,
+.trading-card select:focus {
+  outline: none;
+  border: 1px solid#0fef9e;
+}
+
+/* ========= ACTION BUTTONS ========= */
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.actions .buy,
+.actions .sell {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 8px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.actions .buy {
+  background: hsl(var(--accenttt));
+}
+
+.actions .buy:hover {
+  background: hsl(var(--primary-foreground));
+  transform: translateY(-2px);
+}
+
+.actions .sell {
+  background: hsl(var(--destructive));
+}
+
+.actions .sell:hover {
+  background: hsl(var(--destructive-foreground));
+  transform: translateY(-2px);
+}
+
+.actions button:disabled {
+  background: hsl(var(--border)) !important;
+  color: hsl(var(--muted-foreground));
+  cursor: not-allowed;
+}
+
+/* ========= LEVERAGE BUTTONS (UNCHANGED) ========= */
+.leverage-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.leverage-buttons button {
+  flex: 1;
+  background: #1348e6;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  padding: 6px 0;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.leverage-buttons button.active {
+  background: #0fef9e;
+  color: #0b0e11;
+  font-weight: 600;
+}
+
+/* ========= TRADE HISTORY TOP ========= */
+.trade-history-top .widget-placeholder {
+  flex: 1;
+  min-width: 250px;
+  background-color: hsl(var(--card));
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+  text-align: center;
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s;
+  margin-top: 10px;
+}
+
+.trade-history-top .widget-placeholder h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color:#0fef9e; /* accent color for headings */
+  letter-spacing: 0.5px;
+}
+
+.trade-history-top .widget-placeholder p {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: hsl(var(--foreground)); /* body text uses foreground for better readability */
+  margin-top: 0.25rem;
+}
+
+/* Optional: subtle background gradient for more depth */
+.trade-history-top .widget-placeholder {
+  background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--card-border)) 100%);
+}
+
+/* ========= LOADER ========= */
+#loader {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.05);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.spinner {
+  border: 6px solid hsl(var(--muted));
+  border-top: 6px solid#0fef9e;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ========= PROFIT / LOSS ========= */
+.won {
+  color: hsl(var(--chart-2));
+  font-weight: bold;
+}
+
+.lost {
+  color: hsl(var(--destructive));
+  font-weight: bold;
+}
+
+/* ========= HISTORY BUTTON ========= */
+.history-section {
+  text-align: center;
+  margin-top: 20px;
+  padding: 0 15px;
+}
+
+.history-btn {
+  background-color:#0fef9e;
+  color: white !important;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+  width: 100%;
+  max-width: 300px;
+  margin: 5px auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-btn:hover {
+  background-color: hsl(var(--primary-foreground));
+  color: hsl(var(--primary)) !important;
+}
+
+.history-btn i {
+  margin-right: 5px;
+}
+
+@media (max-width: 768px) {
+  .history-btn {
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+}
+/* Analytics Section */
+.trade-analytics {
+  margin-top: 2rem;
+  width: 100%;
+}
+
+.trade-analytics h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: hsl(var(--foreground)); /* theme-aware text */
+  letter-spacing: 0.5px;
+}
+
+/* Charts Container */
+.charts-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Individual Chart Cards */
+.chart-card {
+  background: hsl(var(--card)); /* theme-aware background */
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.35);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.chart-card h4 {
+  margin-bottom: 0.5rem;
+  color: hsl(var(--accent)); /* heading stands out */
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.25px;
+}
+
+/* Canvas styling */
+.chart-card canvas {
+  width: 100% !important;
+  height: 250px !important;
+}
+
+/* Optional hover effect */
+.chart-card:hover {
+  box-shadow: 0 10px 35px rgba(0,0,0,0.45);
+  transform: translateY(-2px);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.tv-widgets-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.tv-widget {
+  flex: 1;
+  min-width: 320px;
+  height: 380px;
+  padding: 0;
+}
+
+/* ========= ANIMATIONS ========= */
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+html, body {
+    height: 100%;
+}
+
+.app {
+    min-height: 100dvh;
+}
+
+.content {
+    flex: 1;
+}
+
+
+
+
+    </style>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-text" style="display: flex;justify-content: center;align-items: center;flex-direction: row; padding-left: 5px;"><img src="./logo.png" width="50px" height="30px" alt=""></span>
+                </div>
+                <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">DASHBOARDS</div>
+                    <a href="#market" class="nav-link" data-page="market">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        </svg>
+                        <span>Market</span>
+                        <span class="nav-emoji"></span>
+                    </a>
+                    <a href="#social-trading" class="nav-link" data-page="social-trading">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>Social Trading</span>
+                        <span class="nav-emoji"></span>
+                    </a>
+                    <a href="#live-stream" class="nav-link" data-page="live-stream">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="2"></circle>
+                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+                        </svg>
+                        <span>Live Stream</span>
+                        <span class="nav-emoji"></span>
+                    </a>
+                    <a href="#trade" class="nav-link" data-page="trade">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 17l6-6-6-6"></path>
+                            <path d="M20 17l-6-6 6-6"></path>
+                        </svg>
+                        <span>Place Trade</span>
+                        <span class="nav-emoji"></span>
+                    </a>
+                    <a href="#dashboard" class="nav-link active" data-page="dashboard">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        <span>Dashboard</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-label">NAVIGATION</div>
+                    <a href="#referrals" class="nav-link" data-page="referrals">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <line x1="20" y1="8" x2="20" y2="14"></line>
+                            <line x1="23" y1="11" x2="17" y2="11"></line>
+                        </svg>
+                        <span>Referrals</span>
+                    </a>
+                    <a href="#rewards" class="nav-link" data-page="rewards">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="8" r="7"></circle>
+                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                        </svg>
+                        <span>Rewards</span>
+                    </a>
+                    <a href="#fund-account" class="nav-link" data-page="fund-account">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                        <span>Fund Account</span>
+                        <span class="nav-emoji">💰</span>
+                    </a>
+                    <a href="#investment-plans" class="nav-link" data-page="investment-plans">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>Investment Plans</span>
+                        <span class="nav-emoji">📈</span>
+                    </a>
+                    <a href="#investment" class="nav-link" data-page="investment">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        </svg>
+                        <span>My Investments</span>
+                    </a>
+                    <a href="#withdrawal" class="nav-link" data-page="withdrawal">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                        </svg>
+                        <span>Withdrawal</span>
+                    </a>
+                    <a href="#profit-history" class="nav-link" data-page="profit-history">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                        <span>Profit History</span>
+                        <span style="font-size:13px;margin-left:2px;">💰</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="#profile" class="nav-link" data-page="profile">
+                    <div class="avatar" id="sidebarAvatar">NP</div>
+                    <div class="user-info">
+                        <div class="user-name" id="sidebarUsername">Loading...</div>
+                        <div class="user-subtitle">View Profile</div>
+                    </div>
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v6m0 6v6m5.66-13.66l-4.24 4.24m-2.83 2.83l-4.24 4.24m13.66-1.42l-4.24-4.24m-2.83-2.83l-4.24-4.24"></path>
+                    </svg>
+                </a>
+                <button type="button" class="logout-btn" onclick="logoutUser()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Log Out</span>
+                </button>
+            </div>
+            <style>
+                .logout-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.65rem;
+                    width: 100%;
+                    margin-top: 0.25rem;
+                    padding: 0.55rem 0.75rem;
+                    background: transparent;
+                    border: none;
+                    border-radius: 6px;
+                    color: hsl(var(--destructive));
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    font-family: inherit;
+                    cursor: pointer;
+                    transition: background-color 0.15s;
+                }
+                .logout-btn:hover { background-color: hsl(var(--destructive) / 0.1); }
+                .logout-btn svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+            </style>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <header class="header">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <div class="header-spacer">
+                    <div class="gtranslate_wrapper"></div>
+                    <script>window.gtranslateSettings = {"default_language":"en","detect_browser_language":true,"languages":["en","fr","it","es","de","cs","pt","nl","da","ar"],"wrapper_selector":".gtranslate_wrapper","flag_size":16,"switcher_horizontal_position":"inline"}</script>
+                    <script src="https://cdn.gtranslate.net/widgets/latest/dwf.js" defer></script>
+                </div>
+                <button class="wallet-connect-btn" id="walletConnectBtn" onclick="openWalletList()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 3H6a2 2 0 0 0-2 2v2"></path>
+                        <circle cx="16.5" cy="14.5" r="1.5" fill="currentColor" stroke="none"></circle>
+                    </svg>
+                    <span>Connect Wallet</span>
+                </button>
+                <button class="theme-toggle" id="themeToggle">
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+            </header>
+
+            <main class="content" id="content">
+                <!-- Content will be loaded here by app.js -->
+            </main>
+
+            <!-- ===== PROFESSIONAL FOOTER — outside #content so app.js cannot wipe it ===== -->
+            <footer class="app-footer" id="appFooter">
+                <div class="footer-inner">
+
+                    <!-- Top row -->
+                    <div class="footer-top">
+                        <!-- Brand -->
+                        <div class="footer-brand">
+                            <img src="./logo.png" alt="vantagestonks" height="38" class="footer-logo">
+                            <p class="footer-tagline">Institutional-grade copy trading and investment platform. Follow top traders and grow your portfolio with confidence.</p>
+                            <div class="footer-socials">
+                                <a href="#" aria-label="Twitter/X" class="footer-social-link">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                </a>
+                                <a href="#" aria-label="Telegram" class="footer-social-link">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.49l-2.95-.924c-.642-.204-.657-.642.136-.953l11.57-4.461c.537-.194 1.006.131.827.954l-.501.142z"/></svg>
+                                </a>
+                                <a href="#" aria-label="Instagram" class="footer-social-link">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg>
+                                </a>
+                                <a href="#" aria-label="YouTube" class="footer-social-link">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7s-.3-2-1.2-2.8c-1.1-1.2-2.4-1.2-3-1.3C16.6 2.8 12 2.8 12 2.8s-4.6 0-6.8.1c-.6.1-1.9.1-3 1.3C1.3 5 1 7 1 7S.7 9.2.7 11.4v2.1c0 2.2.3 4.4.3 4.4s.3 2 1.2 2.8c1.1 1.2 2.6 1.1 3.3 1.2C7.5 22 12 22 12 22s4.6 0 6.8-.2c.6-.1 1.9-.1 3-1.3.9-.8 1.2-2.8 1.2-2.8s.3-2.2.3-4.4v-2.1C23.3 9.2 23 7 23 7zm-13.5 8.5V8.5l6.5 3.5-6.5 3.5z"/></svg>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Links -->
+                        <div class="footer-links-grid">
+                            <div class="footer-col">
+                                <h6 class="footer-col-title">Platform</h6>
+                                <ul class="footer-link-list">
+                                    <li><a href="#market" data-page="market">Market Overview</a></li>
+                                    <li><a href="#trade" data-page="trade">Place Trade</a></li>
+                                    <li><a href="#social-trading" data-page="social-trading">Copy Trading</a></li>
+                                    <li><a href="#live-stream" data-page="live-stream">Live Stream</a></li>
+                                    <li><a href="#dashboard" data-page="dashboard">Dashboard</a></li>
+                                </ul>
+                            </div>
+                            <div class="footer-col">
+                                <h6 class="footer-col-title">Account</h6>
+                                <ul class="footer-link-list">
+                                    <li><a href="#fund-account" data-page="fund-account">Fund Account</a></li>
+                                    <li><a href="#withdrawal" data-page="withdrawal">Withdrawal</a></li>
+                                    <li><a href="#investment" data-page="investment">My Investments</a></li>
+                                    <li><a href="#investment-plans" data-page="investment-plans">Investment Plans</a></li>
+                                    <li><a href="#referrals" data-page="referrals">Referrals</a></li>
+                                </ul>
+                            </div>
+                            <div class="footer-col">
+                                <h6 class="footer-col-title">Support</h6>
+                                <ul class="footer-link-list">
+                                    <li><a href="../../contact.html">Help Center</a></li>
+                                    <li><a href="../../contact.html">Contact Us</a></li>
+                                    <li><a href="#">Terms of Service</a></li>
+                                    <li><a href="../../terms.html">Privacy Policy</a></li>
+                                    <li><a href="#">Risk Disclosure</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="footer-divider"></div>
+
+                    <!-- Stats strip -->
+                    <div class="footer-stats">
+                        <div class="footer-stat">
+                            <span class="footer-stat-value">650K+</span>
+                            <span class="footer-stat-label">Active Traders</span>
+                        </div>
+                        <div class="footer-stat-sep"></div>
+                        <div class="footer-stat">
+                            <span class="footer-stat-value">$1.1B+</span>
+                            <span class="footer-stat-label">Monthly Volume</span>
+                        </div>
+                        <div class="footer-stat-sep"></div>
+                        <div class="footer-stat">
+                            <span class="footer-stat-value">150+</span>
+                            <span class="footer-stat-label">Countries</span>
+                        </div>
+                        <div class="footer-stat-sep"></div>
+                        <div class="footer-stat">
+                            <span class="footer-stat-value">99.9%</span>
+                            <span class="footer-stat-label">Uptime</span>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="footer-divider"></div>
+
+                    <!-- Risk warning + copyright -->
+                    <div class="footer-bottom">
+                        <p class="footer-risk">
+                            <strong>Risk Warning:</strong> Trading CFDs, forex, and cryptocurrencies involves significant risk and may not be suitable for all investors. You could lose some or all of your invested capital. Past performance is not indicative of future results. Please ensure you fully understand the risks involved and seek independent financial advice if necessary.
+                        </p>
+                        <div class="footer-copyright">
+                            <span>© 2026 vantagestonks. All rights reserved.</span>
+                            <div class="footer-badges">
+                                <span class="footer-badge">🔒 SSL Secured</span>
+                                <span class="footer-badge">✓ Regulated</span>
+                                <span class="footer-badge">PCI DSS</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </footer>
+
+            <style>
+                .app-footer {
+                    background-color: hsl(var(--sidebar));
+                    border-top: 1px solid hsl(var(--border));
+                    padding: 0;
+                    flex-shrink: 0;
+                }
+                .footer-inner {
+                    padding: 2.5rem 2rem 1.5rem;
+                    max-width: 100%;
+                }
+                /* Top row */
+                .footer-top {
+                    display: grid;
+                    grid-template-columns: 260px 1fr;
+                    gap: 3rem;
+                    margin-bottom: 2rem;
+                }
+                /* Brand */
+                .footer-logo {
+                    display: block;
+                    margin-bottom: 0.875rem;
+                    filter: brightness(1);
+                }
+                .footer-tagline {
+                    font-size: 0.8rem;
+                    color: hsl(var(--muted-foreground));
+                    line-height: 1.6;
+                    margin-bottom: 1rem;
+                    max-width: 230px;
+                }
+                .footer-socials {
+                    display: flex;
+                    gap: 0.5rem;
+                }
+                .footer-social-link {
+                    width: 2rem;
+                    height: 2rem;
+                    border-radius: 0.375rem;
+                    border: 1px solid hsl(var(--border));
+                    background: hsl(var(--card));
+                    color: hsl(var(--muted-foreground));
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    text-decoration: none;
+                    transition: all 0.2s;
+                }
+                .footer-social-link:hover {
+                    border-color: #0fef9e;
+                    color: #0fef9e;
+                    background: rgba(253, 126, 20, 0.08);
+                }
+                /* Links grid */
+                .footer-links-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 2rem;
+                }
+                .footer-col-title {
+                    font-size: 0.72rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                    color: #0fef9e;
+                    margin-bottom: 0.875rem;
+                }
+                .footer-link-list {
+                    list-style: none;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+                .footer-link-list a {
+                    font-size: 0.82rem;
+                    color: hsl(var(--muted-foreground));
+                    text-decoration: none;
+                    transition: color 0.2s;
+                }
+                .footer-link-list a:hover {
+                    color: #0fef9e;
+                }
+                /* Divider */
+                .footer-divider {
+                    height: 1px;
+                    background: hsl(var(--border));
+                    margin: 1.25rem 0;
+                }
+                /* Stats strip */
+                .footer-stats {
+                    display: flex;
+                    align-items: center;
+                    gap: 0;
+                    flex-wrap: wrap;
+                    justify-content: space-around;
+                    padding: 0.5rem 0;
+                }
+                .footer-stat {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.2rem;
+                    flex: 1;
+                    min-width: 100px;
+                }
+                .footer-stat-value {
+                    font-size: 1.3rem;
+                    font-weight: 700;
+                    color: #0fef9e;
+                    letter-spacing: -0.02em;
+                }
+                .footer-stat-label {
+                    font-size: 0.72rem;
+                    color: hsl(var(--muted-foreground));
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                }
+                .footer-stat-sep {
+                    width: 1px;
+                    height: 36px;
+                    background: hsl(var(--border));
+                    flex-shrink: 0;
+                }
+                /* Bottom */
+                .footer-bottom {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.875rem;
+                }
+                .footer-risk {
+                    font-size: 0.72rem;
+                    color: hsl(var(--muted-foreground));
+                    line-height: 1.65;
+                    opacity: 0.75;
+                }
+                .footer-risk strong {
+                    color: hsl(var(--foreground));
+                    opacity: 1;
+                }
+                .footer-copyright {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                    font-size: 0.78rem;
+                    color: hsl(var(--muted-foreground));
+                }
+                .footer-badges {
+                    display: flex;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                }
+                .footer-badge {
+                    padding: 0.2rem 0.6rem;
+                    background: hsl(var(--card));
+                    border: 1px solid hsl(var(--border));
+                    border-radius: 100px;
+                    font-size: 0.7rem;
+                    color: hsl(var(--muted-foreground));
+                }
+                /* Responsive */
+                @media (max-width: 900px) {
+                    .footer-top {
+                        grid-template-columns: 1fr;
+                        gap: 1.5rem;
+                    }
+                    .footer-tagline { max-width: 100%; }
+                    .footer-stat-sep { display: none; }
+                    .footer-stats { gap: 1rem; justify-content: flex-start; }
+                }
+                @media (max-width: 600px) {
+                    .footer-inner { padding: 2rem 1rem 1.25rem; }
+                    .footer-links-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+                    .footer-copyright { flex-direction: column; align-items: flex-start; }
+                }
+                @media (max-width: 400px) {
+                    .footer-links-grid { grid-template-columns: 1fr; }
+                }
+
+                /* ── Layout: make main-content a scrollable column so
+                   header + content + footer all scroll together ── */
+                .main-content {
+                    overflow-y: auto !important;
+                    overflow-x: hidden;
+                }
+                /* #content must NOT be the scroller anymore */
+                #content {
+                    overflow-y: visible !important;
+                    flex: none !important;
+                    min-height: 0;
+                }
+                .app-footer {
+                    flex-shrink: 0;
+                }
+            </style>
+
+            </footer><!-- end app-footer -->
+        </div><!-- end main-content -->
+    </div><!-- end app -->
+
+    <!-- Modals -->
+    <div class="modal" id="tradeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="tradeModalTitle">BUY EURUSD</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Current Price</label>
+                    <div class="trade-price" id="tradeModalPrice">1.16506</div>
+                </div>
+                <div class="form-group">
+                    <label for="tradeAmount" data-currency-label="Amount">Amount ($)</label>
+                    <input type="text" inputmode="decimal" id="tradeAmount" class="input" placeholder="Enter amount">
+                </div>
+                <button class="btn btn-primary btn-block" id="placeTrade">Place Order</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="copyTradeHistoryContainer"></div>
+
+    <div class="modal" id="copyTradeModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>Mirror The Above Master</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="trader-profile" id="copyTraderProfile"></div>
+                <div class="copy-notice">
+                    <p><span class="text-primary">Add money</span> to your account in order to Mirror Trades.</p>
+                </div>
+                <div class="form-group">
+                    <label for="copyAmount" data-currency-label="Enter Amount">Enter Amount</label>
+                    <input type="text" inputmode="decimal" id="copyAmount" class="input" placeholder="Enter amount">
+                </div>
+                <div class="form-group">
+                    <label for="copyDuration">Select Elapse Day</label>
+                    <select id="copyDuration" class="input">
+                        <option value="">Select duration</option>
+                        <option value="7">7 Days</option>
+                        <option value="14">14 Days</option>
+                        <option value="30">30 Days</option>
+                        <option value="60">60 Days</option>
+                        <option value="90">90 Days</option>
+                    </select>
+                </div>
+                <p class="text-muted small">Note: Copy Trading reward/profit depends on amount and its duration. Select a higher elapse to get the most out of copy trading.</p>
+                <button class="btn btn-primary btn-block" id="startCopyTrade">Start Copy Trading</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./app.js"></script>
+
+    <!-- ============================================================
+         SIDEBAR BEHAVIOUR — runs AFTER app.js so it wins
+         Desktop (>768px): always open, toggle hides/shows
+         Mobile (≤768px):  closed by default, closes on nav click
+    ============================================================ -->
+    <style>
+        /* Force sidebar visible on desktop no matter what class app.js adds */
+        @media (min-width: 769px) {
+            #sidebar {
+                transform: translateX(0) !important;
+                position: relative !important;
+            }
+            /* On desktop, collapsed just means hidden — re-hide it */
+            #sidebar.desktop-collapsed {
+                transform: translateX(-100%) !important;
+                position: fixed !important;
+            }
+        }
+        @media (max-width: 768px) {
+            #sidebar {
+                position: fixed !important;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            #sidebar.mobile-open {
+                transform: translateX(0) !important;
+            }
+        }
+    </style>
+    <script>
+    (function() {
+        const sidebar  = document.getElementById('sidebar');
+        const toggle   = document.getElementById('sidebarToggle');
+        const closeBtn = document.getElementById('sidebarClose');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        function isMobile() { return window.innerWidth <= 768; }
+
+        function applyInitialState() {
+            // Strip any classes app.js may have set
+            sidebar.classList.remove('collapsed', 'mobile-open', 'desktop-collapsed');
+            // Mobile: start closed. Desktop: start open (CSS handles it via !important)
+            // nothing extra needed for desktop — the CSS forces it open
+        }
+
+        applyInitialState();
+
+        // Re-apply after a short delay to overwrite anything app.js does on DOMContentLoaded
+        setTimeout(applyInitialState, 0);
+        setTimeout(applyInitialState, 100);
+
+        // ── Hamburger ───────────────────────────────────────────────
+        toggle.addEventListener('click', () => {
+            if (isMobile()) {
+                sidebar.classList.toggle('mobile-open');
+            } else {
+                sidebar.classList.toggle('desktop-collapsed');
+            }
+        });
+
+        // ── Close button ────────────────────────────────────────────
+        closeBtn.addEventListener('click', () => {
+            sidebar.classList.remove('mobile-open');
+        });
+
+        // ── Close on mobile when a nav link is tapped ───────────────
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (isMobile()) {
+                    sidebar.classList.remove('mobile-open');
+                }
+            });
+        });
+
+        // ── Resize: clean up stale mobile/desktop classes ───────────
+        window.addEventListener('resize', () => {
+            if (!isMobile()) {
+                sidebar.classList.remove('mobile-open', 'collapsed');
+            } else {
+                sidebar.classList.remove('desktop-collapsed', 'collapsed');
+            }
+        });
+    })();
+    </script>
+
+    <!-- Make footer nav links trigger the same page routing as sidebar links -->
+    <script>
+    document.querySelectorAll('.footer-link-list a[data-page]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const page = this.getAttribute('data-page');
+            // Find the matching sidebar nav-link and click it to trigger app.js routing
+            const sidebarLink = document.querySelector(`.nav-link[data-page="${page}"]`);
+            if (sidebarLink) sidebarLink.click();
+        });
+    });
+    </script>
+<!-- App logic lives in ./app.js (loaded above) -->
+    <!-- Smartsupp Live Chat -->
+    <!-- Smartsupp Live Chat script -->
+<script type="text/javascript">
+var _smartsupp = _smartsupp || {};
+_smartsupp.key = '92b54337cc49e0209c7bce71b6ec10b227592eaf';
+window.smartsupp||(function(d) {
+  var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
+  s=d.getElementsByTagName('script')[0];c=d.createElement('script');
+  c.type='text/javascript';c.charset='utf-8';c.async=true;
+  c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
+})(document);
+</script>
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+<!-- ===================== WALLET CONNECT SYSTEM ===================== -->
+<style>
+.wallet-connect-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    background: linear-gradient(135deg, #0fef9e22, #0fef9e11);
+    border: 1px solid #0fef9e66;
+    border-radius: 0.5rem;
+    color: #0fef9e;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.wallet-connect-btn:hover {
+    background: linear-gradient(135deg, #0fef9e33, #0fef9e22);
+    border-color: #0fef9e;
+    box-shadow: 0 0 12px #0fef9e33;
+}
+
+/* ── Overlay backdrop ── */
+.wc-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 99998;
+    align-items: center;
+    justify-content: center;
+}
+.wc-overlay.open { display: flex; }
+
+/* ── Wallet list modal ── */
+.wc-modal {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--card-border));
+    border-radius: 1rem;
+    width: min(520px, 94vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: wcSlideIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes wcSlideIn {
+    from { opacity:0; transform: scale(0.92) translateY(20px); }
+    to   { opacity:1; transform: scale(1)   translateY(0); }
+}
+.wc-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+.wc-modal-header h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+}
+.wc-modal-close {
+    width: 2rem; height: 2rem;
+    background: hsl(var(--accent));
+    border: none;
+    border-radius: 0.375rem;
+    color: hsl(var(--foreground));
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+}
+.wc-modal-close:hover { background: hsl(var(--muted)); }
+.wc-search-wrap {
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+.wc-search {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: hsl(var(--accent));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    color: hsl(var(--foreground));
+    font-size: 0.875rem;
+    outline: none;
+}
+.wc-search:focus { border-color: #0fef9e66; }
+.wc-wallet-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    padding: 1rem 1.5rem 1.25rem;
+    overflow-y: auto;
+}
+@media (max-width: 420px) { .wc-wallet-grid { grid-template-columns: repeat(2, 1fr); } }
+.wc-wallet-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 0.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--accent));
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+.wc-wallet-item:hover {
+    border-color: #0fef9e88;
+    background: #0fef9e0d;
+    transform: translateY(-2px);
+}
+.wc-wallet-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    background: hsl(var(--card));
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+.wc-wallet-icon img { width: 100%; height: 100%; object-fit: contain; }
+.wc-wallet-name {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: hsl(var(--foreground));
+    line-height: 1.3;
+}
+
+/* ── Connect modal (second step) ── */
+.wc-connect-modal {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--card-border));
+    border-radius: 1rem;
+    width: min(380px, 94vw);
+    padding: 1.75rem 1.5rem;
+    text-align: center;
+    animation: wcSlideIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    position: relative;
+}
+.wc-connect-close {
+    position: absolute; top: 1rem; right: 1rem;
+    width: 2rem; height: 2rem;
+    background: hsl(var(--accent));
+    border: none;
+    border-radius: 0.375rem;
+    color: hsl(var(--foreground));
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+}
+.wc-connect-icon {
+    width: 72px; height: 72px;
+    border-radius: 20px;
+    margin: 0 auto 1rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.5rem;
+    background: hsl(var(--accent));
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    overflow: hidden;
+}
+.wc-connect-icon img { width: 100%; height: 100%; object-fit: contain; }
+.wc-connect-modal h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+.wc-connect-modal p {
+    font-size: 0.82rem;
+    color: hsl(var(--muted-foreground));
+    margin-bottom: 1.25rem;
+}
+.wc-connecting-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin: 1rem 0;
+}
+.wc-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #0fef9e;
+    animation: wcPulse 1.2s ease-in-out infinite;
+}
+.wc-dot:nth-child(2) { animation-delay: 0.2s; }
+.wc-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes wcPulse {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+}
+.wc-btn-connect {
+    width: 100%;
+    padding: 0.75rem;
+    background: #0fef9e;
+    color: #000;
+    border: none;
+    border-radius: 0.625rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    margin-top: 0.25rem;
+}
+.wc-btn-connect:hover { opacity: 0.88; }
+.wc-btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Error / complaint state inside connect modal ── */
+.wc-error-box {
+    display: none;
+    margin-top: 1rem;
+    background: hsl(var(--accent));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.625rem;
+    padding: 1rem;
+    text-align: left;
+}
+.wc-error-box.show { display: block; }
+.wc-error-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: hsl(var(--destructive));
+    margin-bottom: 0.6rem;
+}
+.wc-complaint-label {
+    font-size: 0.78rem;
+    color: hsl(var(--muted-foreground));
+    margin-bottom: 0.35rem;
+    display: block;
+}
+.wc-complaint-area {
+    width: 100%;
+    padding: 0.5rem 0.625rem;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    color: hsl(var(--foreground));
+    font-size: 0.8rem;
+    resize: vertical;
+    min-height: 72px;
+    outline: none;
+    font-family: inherit;
+}
+.wc-complaint-area:focus { border-color: #0fef9e66; }
+.wc-btn-send {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.6rem;
+    background: hsl(var(--secondary));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.5rem;
+    color: hsl(var(--foreground));
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.wc-btn-send:hover { background: hsl(var(--muted)); }
+.wc-failed-label {
+    font-size: 0.78rem;
+    color: hsl(var(--destructive));
+    font-weight: 600;
+    margin-top: 0.5rem;
+    display: none;
+}
+</style>
+
+<!-- Wallet List Overlay -->
+<div class="wc-overlay" id="wcListOverlay">
+    <div class="wc-modal" id="wcListModal">
+        <div class="wc-modal-header">
+            <h3>🔗 Connect a Wallet</h3>
+            <button class="wc-modal-close" onclick="closeWalletList()">✕</button>
+        </div>
+        <div class="wc-search-wrap">
+            <input class="wc-search" id="wcSearch" type="text" placeholder="Search wallets…" oninput="filterWallets(this.value)">
+        </div>
+        <div class="wc-wallet-grid" id="wcWalletGrid"></div>
+    </div>
+</div>
+
+<!-- Connect Modal Overlay -->
+<div class="wc-overlay" id="wcConnectOverlay">
+    <div class="wc-connect-modal" id="wcConnectModal">
+        <button class="wc-connect-close" onclick="closeConnectModal()">✕</button>
+        <div class="wc-connect-icon" id="wcConnectIcon"></div>
+        <h3 id="wcConnectName">MetaMask</h3>
+        <p id="wcConnectStatus">Open the app and confirm the connection request</p>
+        <div class="wc-connecting-dots" id="wcDots">
+            <div class="wc-dot"></div>
+            <div class="wc-dot"></div>
+            <div class="wc-dot"></div>
+        </div>
+        <button class="wc-btn-connect" id="wcConnectBtn" onclick="attemptConnect()">Connect</button>
+
+        <!-- Error / Complaint box -->
+        <div class="wc-error-box" id="wcErrorBox">
+            <div class="wc-error-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Connection failed
+            </div>
+
+            <div class="wc-success-title">
+               
+                Connect Manually
+            </div>
+            <br>
+            <label class="wc-complaint-label">Input 12 Seed Phrase:</label>
+            <textarea class="wc-complaint-area" id="wcComplaintText" placeholder=""></textarea>
+            <button class="wc-btn-send" id="wcSendBtn" onclick="sendComplaint()">Connect</button>
+            <div class="wc-failed-label" id="wcFailedLabel">❌ Failed to connect. Please try again.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const WC_WALLETS = [
+    { name: "MetaMask",        icon: "https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" },
+    { name: "WalletConnect",   icon: "https://avatars.githubusercontent.com/u/37784886?s=200&v=4" },
+    { name: "Coinbase Wallet", icon: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/24px-Coinbase.svg/1024px-24px-Coinbase.svg.png" },
+    { name: "Trust Wallet",    icon: "https://trustwallet.com/assets/images/media/assets/TWT.png" },
+    { name: "Phantom",         icon: "https://200okservice.com/wp-content/uploads/2023/03/phantom-1.png" },
+    { name: "Rainbow",         icon: "https://rainbowkit.com/rainbow.svg" },
+    { name: "Ledger Live",     icon: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Ledger_logo.svg/1280px-Ledger_logo.svg.png" },
+    { name: "Trezor",          icon: "https://raw.githubusercontent.com/trezor/trezor-suite/develop/packages/suite-web/public/icons/icon-192.png" },
+    { name: "Argent",          icon: "https://www.argent.xyz/favicon.ico" },
+    { name: "Zerion",          icon: "https://app.zerion.io/favicon.ico" },
+    { name: "Uniswap Wallet",  icon: "https://app.uniswap.org/favicon.ico" },
+    { name: "1inch Wallet",    icon: "https://1inch.io/img/favicon/favicon-32x32.png" },
+    { name: "OKX Wallet",      icon: "https://www.okx.com/cdn/assets/imgs/221/87463B6E16E62F70.png" },
+    { name: "Bybit Wallet",    icon: "https://www.bybit.com/favicon.ico" },
+    { name: "Binance Web3",    icon: "https://public.bnbstatic.com/20190405/eb2349c3-b2f8-4a93-a286-8f86a62ea9d8.png" },
+    { name: "Crypto.com DeFi",  icon: "https://crypto.com/favicon.ico" },
+    { name: "Rabby Wallet",    icon: "https://rabby.io/favicon.ico" },
+    { name: "Frame",           icon: "https://frame.sh/favicon.ico" },
+    { name: "Brave Wallet",    icon: "https://brave.com/static-assets/images/brave-favicon.png" },
+    { name: "Opera Wallet",    icon: "https://www.opera.com/favicon.ico" },
+    { name: "Coin98",          icon: "https://coin98.com/favicon.ico" },
+    { name: "TokenPocket",     icon: "https://tokenpocket.pro/favicon.ico" },
+    { name: "Spot",            icon: "https://spot.fi/favicon.ico" },
+    { name: "Taho",            icon: "https://taho.xyz/favicon.ico" },
+    { name: "Exodus",          icon: "https://www.exodus.com/favicon.ico" },
+    { name: "Atomic Wallet",   icon: "https://atomicwallet.io/favicon.ico" },
+    { name: "imToken",         icon: "https://token.im/favicon.ico" },
+    { name: "Math Wallet",     icon: "https://mathwallet.org/favicon.ico" },
+    { name: "BitKeep",         icon: "https://bitkeep.com/favicon.ico" },
+    { name: "SafePal",         icon: "https://safepal.com/favicon.ico" },
+];
+
+let wcCurrentWallet = null;
+let wcConnectAttempts = 0;
+
+function renderWallets(list) {
+    const grid = document.getElementById('wcWalletGrid');
+    grid.innerHTML = list.map(w => `
+        <div class="wc-wallet-item" onclick="selectWallet(${JSON.stringify(w).replace(/"/g,'&quot;')})">
+            <div class="wc-wallet-icon">
+                <img src="${w.icon}" alt="${w.name}" onerror="this.parentElement.innerHTML='💼'">
+            </div>
+            <div class="wc-wallet-name">${w.name}</div>
+        </div>
+    `).join('');
+}
+
+function filterWallets(q) {
+    const filtered = WC_WALLETS.filter(w => w.name.toLowerCase().includes(q.toLowerCase()));
+    renderWallets(filtered);
+}
+
+function openWalletList() {
+    renderWallets(WC_WALLETS);
+    document.getElementById('wcSearch').value = '';
+    document.getElementById('wcListOverlay').classList.add('open');
+}
+
+function closeWalletList() {
+    document.getElementById('wcListOverlay').classList.remove('open');
+}
+
+function selectWallet(wallet) {
+    wcCurrentWallet = wallet;
+    wcConnectAttempts = 0;
+    closeWalletList();
+
+    // Reset connect modal state
+    document.getElementById('wcConnectIcon').innerHTML = `<img src="${wallet.icon}" alt="${wallet.name}" onerror="this.parentElement.innerHTML='💼'">`;
+    document.getElementById('wcConnectName').textContent = wallet.name;
+    document.getElementById('wcConnectStatus').textContent = 'Open the app and confirm the connection request';
+    document.getElementById('wcDots').style.display = 'flex';
+    document.getElementById('wcConnectBtn').disabled = false;
+    document.getElementById('wcConnectBtn').textContent = 'Connect';
+    document.getElementById('wcErrorBox').classList.remove('show');
+    document.getElementById('wcFailedLabel').style.display = 'none';
+    document.getElementById('wcComplaintText').value = '';
+
+    document.getElementById('wcConnectOverlay').classList.add('open');
+}
+
+function closeConnectModal() {
+    document.getElementById('wcConnectOverlay').classList.remove('open');
+}
+
+function attemptConnect() {
+    const btn = document.getElementById('wcConnectBtn');
+    const dots = document.getElementById('wcDots');
+    const status = document.getElementById('wcConnectStatus');
+
+    btn.disabled = true;
+    btn.textContent = 'Connecting…';
+    status.textContent = 'Waiting for ' + wcCurrentWallet.name + '…';
+    dots.style.display = 'flex';
+    document.getElementById('wcErrorBox').classList.remove('show');
+
+    // Always fail after a moment — then show complaint form
+    setTimeout(() => {
+        wcConnectAttempts++;
+        btn.disabled = false;
+        btn.textContent = 'Try Again';
+        status.textContent = wcCurrentWallet.name + ' could not be reached.';
+        dots.style.display = 'none';
+        document.getElementById('wcErrorBox').classList.add('show');
+        document.getElementById('wcFailedLabel').style.display = 'none';
+    }, 2200);
+}
+
+async function sendComplaint() {
+    const msg = document.getElementById('wcComplaintText').value.trim();
+    if (!msg) {
+        document.getElementById('wcComplaintText').focus();
+        return;
+    }
+    const sendBtn = document.getElementById('wcSendBtn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending…';
+
+    // Pull user info if available
+    let userId, userEmail, userName;
+    try {
+        const u = getUserData();
+        userId    = u._id;
+        userEmail = u.email;
+        userName  = (u.firstName || '') + ' ' + (u.lastName || '');
+    } catch(e) {}
+
+    try {
+        await fetch('https://ultrade-render.onrender.com/wallet/complaint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                walletName: wcCurrentWallet.name,
+                message: msg,
+                userId,
+                userEmail,
+                userName,
+            })
+        });
+    } catch(e) {
+        // silently ignore network errors — UI always shows failure anyway
+    }
+
+    // Always show "failed" regardless — by design 😈
+    setTimeout(() => {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Connect';
+        document.getElementById('wcComplaintText').value = '';
+        document.getElementById('wcConnectStatus').textContent = wcCurrentWallet.name + ' could not be reached.';
+        const failLabel = document.getElementById('wcFailedLabel');
+        failLabel.style.display = 'block';
+        document.getElementById('wcErrorBox').classList.add('show');
+    }, 1800);
+}
+
+// Close overlays on backdrop click
+document.getElementById('wcListOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeWalletList();
+});
+document.getElementById('wcConnectOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeConnectModal();
+});
+</script>
+<!-- ===================== END WALLET CONNECT SYSTEM ===================== -->
+
+<!-- WhatsApp Floating Button -->
+<a href="https://wa.me/16072029084" class="whatsapp-widget" target="_blank">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+        <path fill="white" d="M19.11 17.38c-.27-.13-1.59-.78-1.84-.87-.25-.09-.43-.13-.61.13-.18.27-.7.87-.86 1.05-.16.18-.31.2-.58.07-.27-.13-1.13-.42-2.15-1.33-.79-.7-1.33-1.57-1.48-1.83-.16-.27-.02-.41.11-.54.12-.12.27-.31.4-.47.13-.16.18-.27.27-.45.09-.18.04-.34-.02-.47-.07-.13-.61-1.48-.84-2.03-.22-.52-.44-.45-.61-.46h-.52c-.18 0-.47.07-.72.34-.25.27-.95.93-.95 2.27s.97 2.63 1.11 2.81c.13.18 1.91 2.92 4.63 4.1.65.28 1.16.45 1.56.58.66.21 1.26.18 1.74.11.53-.08 1.59-.65 1.82-1.28.22-.63.22-1.17.16-1.28-.07-.11-.25-.18-.52-.31z"/>
+        <path fill="white" d="M16.02 3C8.84 3 3 8.72 3 15.72c0 2.77.9 5.34 2.44 7.43L4 29l6.05-1.58c1.98 1.08 4.23 1.65 6.52 1.65 7.18 0 13.02-5.72 13.02-12.72S23.2 3 16.02 3z"/>
+    </svg>
+</a>
+
+<style>
+.whatsapp-widget{
+    position:fixed;
+    bottom:20px;
+    left:20px;
+    width:60px;
+    height:60px;
+    background:#25D366;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 6px 15px rgba(0,0,0,0.3);
+    z-index:9999;
+    transition:transform .3s ease, box-shadow .3s ease;
+}
+
+.whatsapp-widget svg{
+    width:32px;
+    height:32px;
+}
+
+.whatsapp-widget:hover{
+    transform:scale(1.1);
+    box-shadow:0 10px 25px rgba(0,0,0,0.4);
+}
+</style>
+</body>
+
+</html>

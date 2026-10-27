@@ -1,0 +1,3512 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+/* =====================================================================
+   ADMIN AUTH — loaded before every other admin script.
+   - Attaches `Authorization: Bearer <adminToken>` to every request to the
+     API (jQuery $.ajax and fetch), so routes behind requireAdmin work
+     without each script having to remember the header.
+   - If there's no token (or the API answers 401), shows an admin login
+     prompt that calls POST /auth/login and stores the returned token.
+   ===================================================================== */
+(function AdminAuth() {
+  const API_ORIGIN = "https://vantage-render.onrender.com";
+  let prompting = false;
+
+  const getToken = () => localStorage.getItem("adminToken");
+  const isApiUrl = (url) => typeof url === "string" && url.indexOf(API_ORIGIN) === 0;
+
+  // jQuery requests
+  $.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+    const token = getToken();
+    if (token && isApiUrl(options.url)) jqXHR.setRequestHeader("Authorization", "Bearer " + token);
+  });
+
+  // fetch requests
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const url = typeof input === "string" ? input : (input && input.url);
+    const token = getToken();
+    if (token && isApiUrl(url)) {
+      init = Object.assign({}, init);
+      const headers = new Headers(init.headers || (typeof input !== "string" && input.headers) || {});
+      if (!headers.has("Authorization")) headers.set("Authorization", "Bearer " + token);
+      init.headers = headers;
+    }
+    return nativeFetch(input, init).then(function (res) {
+      if (res.status === 401 && isApiUrl(url)) promptAdminLogin("Your admin session has expired. Please log in again.");
+      return res;
+    });
+  };
+
+  $(document).ajaxError(function (event, jqXHR, settings) {
+    if (jqXHR.status === 401 && isApiUrl(settings.url)) {
+      promptAdminLogin("Your admin session has expired. Please log in again.");
+    }
+  });
+
+  async function promptAdminLogin(reason) {
+    if (prompting) return;
+    prompting = true;
+    localStorage.removeItem("adminToken");
+
+    const result = await Swal.fire({
+      title: "Admin Login",
+      html:
+        (reason ? `<p style="margin:0 0 8px;font-size:14px;color:#888;">${reason}</p>` : "") +
+        '<input id="adminLoginEmail" type="email" class="swal2-input" placeholder="Admin email" autocomplete="username">' +
+        '<input id="adminLoginPassword" type="password" class="swal2-input" placeholder="Password" autocomplete="current-password">',
+      confirmButtonText: "Log in",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showLoaderOnConfirm: true,
+      didOpen: () => document.getElementById("adminLoginEmail").focus(),
+      preConfirm: async () => {
+        const email = document.getElementById("adminLoginEmail").value.trim();
+        const password = document.getElementById("adminLoginPassword").value;
+        if (!email || !password) return Swal.showValidationMessage("Enter your email and password");
+
+        let res, body = {};
+        try {
+          res = await nativeFetch(API_ORIGIN + "/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          body = await res.json().catch(() => ({}));
+        } catch (e) {
+          return Swal.showValidationMessage("Can't reach the server. It may be waking up — try again in a minute.");
+        }
+
+        if (res.status === 404) return Swal.showValidationMessage("No account found with that email");
+        if (!res.ok) return Swal.showValidationMessage("Incorrect email or password");
+        if (!body.token) {
+          return Swal.showValidationMessage("This account isn't an admin. Set isAdmin: true on it in the database.");
+        }
+
+        const user = Object.assign({}, body.data);
+        delete user.password; delete user.otp; delete user.otpExpiration;
+        localStorage.setItem("adminToken", body.token);
+        localStorage.setItem("user", JSON.stringify(user));
+        return true;
+      },
+    });
+
+    prompting = false;
+    if (result.isConfirmed && getToken()) {
+      // reload so every section re-fetches its data with the new token
+      location.reload();
+    } else {
+      // another script's popup replaced the prompt — bring it back
+      setTimeout(() => promptAdminLogin(reason), 400);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    if (!getToken()) promptAdminLogin();
+  });
+
+  window.promptAdminLogin = promptAdminLogin;
+})();
+</script>
+  <style>
+    :root{
+      --bg: #f5f7fb;
+      --card: #fff;
+      --muted: #8a94a6;
+      --accent: #2b6ef6;
+      --danger: #e74c3c;
+      --success: #28a745;
+      --glass: rgba(255,255,255,0.6);
+      --shadow: rgba(2,6,23,0.08);
+      --text: #0d1117;
+    }
+    body.dark {
+      --bg: #0f1720;
+      --card: #111318;
+      --muted: #9aa4b2;
+      --accent: #f5b400;
+      --danger: #e0524c;
+      --success: #29c77d;
+      --glass: rgba(255,255,255,0.02);
+      --shadow: rgba(0,0,0,0.6);
+      --text: #e6eef8;
+    }
+
+    *{box-sizing:border-box;font-family:"Poppins",system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);transition:background .25s,color .25s}
+    /* the dark palette lives on body, so give <html> the dark background too —
+       otherwise anything taller than the screen shows a light strip below it */
+    html:has(> body.dark){background:#0f1720;}
+    .app {
+      display:flex;
+      height:100vh;
+      gap:20px;
+      padding:16px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width:250px;
+      background:var(--card);
+      border-radius:12px;
+      padding:16px;
+      box-shadow: 0 6px 18px var(--shadow);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      flex-shrink:0;
+    }
+    .brand { font-weight:700; color:var(--accent); font-size:1.1rem; }
+    .nav { display:flex;flex-direction:column; gap:6px; margin-top:6px; overflow:auto }
+    .nav a {
+      padding:10px 12px; border-radius:8px; color:inherit; text-decoration:none; display:flex; gap:10px; align-items:center;
+    }
+    .nav a:hover { background: rgba(0,0,0,0.03); }
+    .nav a.active { background: linear-gradient(90deg, rgba(0,0,0,0.04), rgba(0,0,0,0.02)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.02); font-weight:600; }
+
+    .content {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    header.topbar {
+      height:64px;
+      background:var(--card);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 18px;
+      border-radius:12px;
+      box-shadow: 0 6px 18px var(--shadow);
+    }
+    .top-actions { display:flex; gap:12px; align-items:center; }
+    .search { padding:8px 12px; border-radius:8px; border:1px solid rgba(0,0,0,0.06); background:transparent; color:var(--text); }
+    .btn {
+      padding:8px 12px; border-radius:8px; border:none; cursor:pointer; background:var(--accent); color:white; font-weight:600;
+    }
+    .btn.ghost { background:transparent; color:var(--text); border:1px solid rgba(0,0,0,0.06) }
+    .main-area {
+      flex:1;
+      overflow:auto;
+      padding:14px;
+    }
+
+    .card {
+      background:var(--card);
+      border-radius:12px;
+      padding:16px;
+      box-shadow: 0 6px 18px var(--shadow);
+    }
+
+    .grid { display:grid; gap:12px; grid-template-columns: repeat(3,1fr); }
+    .grid .card { padding:18px; }
+
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    table thead tr { background:var(--glass); }
+    table thead th { text-align:left; padding:10px; color:var(--muted); font-weight:600; }
+    table tbody td { padding:10px; border-bottom:1px solid rgba(0,0,0,0.04); }
+
+    .table-wrapper { overflow-x: auto; max-height: 520px; width: 100%; -webkit-overflow-scrolling: touch; }
+
+    .badge { padding:6px 10px; border-radius:999px; font-weight:600; font-size:12px; display:inline-block; }
+    .badge.green { background: rgba(40,167,69,0.12); color:var(--success); }
+    .badge.red { background: rgba(231,76,60,0.12); color:var(--danger); }
+    .muted { color:var(--muted); font-size:13px; }
+
+    /* Small screens */
+    @media (max-width:1000px) {
+      .app { padding: 8px; flex-direction: column; }
+      
+      .content { width: 100%; padding: 0; }
+      
+      .main-area { padding: 8px; }
+      
+      .grid { grid-template-columns: 1fr; }
+      
+      .form-row { flex-direction: column; }
+      
+      .input { width: 100%; }
+      
+      table { min-width: 100%; font-size: 13px; }
+      
+      .table-wrapper { margin: 0 -8px; padding: 0 8px; }
+      
+      .action-group { flex-wrap: wrap; }
+      
+      .sidebar { display: flex !important; }
+    }
+
+    /* compact helpers */
+    .row { display:flex; gap:12px; align-items:center; }
+    .col { display:flex; flex-direction:column; gap:6px; }
+    .form-row { display:flex; gap:12px; }
+    /* stack each label above its input inside form columns */
+    .form-row > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .form-row > div > label { margin-top:8px; }
+    .form-row > div > label:first-child { margin-top:0; }
+    /* inputs were invisible in dark mode (6% black border on a near-black card) */
+    body.dark .input { border-color:rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); }
+    /* ── Registration details: collapsible groups of label/value rows ── */
+    .sv-head { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+    .sv-badge { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+    .sv-badge-ok { background:rgba(40,167,69,0.15); color:var(--success); }
+    .sv-badge-pending { background:rgba(231,76,60,0.12); color:var(--danger); }
+    .sv-group { border:1px solid rgba(127,127,127,0.18); border-radius:10px; margin-top:8px; overflow:hidden; }
+    .sv-group summary {
+      cursor:pointer; list-style:none; padding:12px 14px; font-weight:600; font-size:14px;
+      display:flex; justify-content:space-between; align-items:center; user-select:none;
+    }
+    .sv-group summary::-webkit-details-marker { display:none; }
+    .sv-group summary::after { content:'▾'; transition:transform .2s; opacity:.7; }
+    .sv-group[open] summary::after { transform:rotate(180deg); }
+    .sv-group[open] summary { border-bottom:1px solid rgba(127,127,127,0.18); }
+    .sv-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:0 24px; padding:4px 14px 10px; }
+    .sv-row { display:flex; flex-direction:column; gap:2px; padding:8px 0; border-bottom:1px dashed rgba(127,127,127,0.15); min-width:0; }
+    .sv-label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted, #8a94a6); }
+    .sv-value { color:var(--text); font-size:14px; font-weight:500; overflow-wrap:anywhere; }
+    @media (max-width: 640px) {
+      .sv-grid { grid-template-columns:1fr; }
+    }
+    /* action buttons under the edit-user form wrap instead of overflowing on small screens */
+    #edit-user .edit-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+    #edit-user .edit-actions .btn, #edit-user .edit-actions .small-btn { margin:0 !important; }
+
+    .input { padding:10px; border-radius:8px; border:1px solid rgba(0,0,0,0.06); background:transparent; color:var(--text); min-width:0; }
+    .action-group { display:flex; gap:8px; }
+
+    /* Theme toggler styles */
+    .theme-toggle { padding:8px 10px; border-radius:8px; cursor:pointer; border:none; }
+    .section-title { font-size:1.1rem; font-weight:700; margin-bottom:8px; }
+
+    /* small button styles */
+    .small-btn { padding:6px 8px; border-radius:6px; cursor:pointer; border:none; font-weight:600; }
+    .small-btn.primary { background:var(--accent); color:white; }
+    .small-btn.danger { background:var(--danger); color:white; }
+    .small-btn.success { background:var(--success); color:white; }
+
+    /* table action buttons */
+    .table-btn { padding:6px 8px; border-radius:6px; cursor:pointer; border:none; font-weight:600; margin-right:6px; }
+    .table-btn.primary { background:#2563eb;color:white; }
+    .table-btn.warn { background:#f59e0b;color:white; }
+    .table-btn.danger { background:#ef4444;color:white; }
+
+    /* make .table-body rows nicely spaced */
+    .table-body tr:hover { background: rgba(0,0,0,0.02); }
+
+    /* 💡 HAMBURGER + CLOSE ICON STYLES */
+@media(max-width:1000px){
+  .sidebar{
+    position:fixed;top:0;left:0;height:100vh;width:240px;border-radius:0;
+    transform:translateX(-110%);
+    transition:transform .3s ease-in-out;
+  }
+  /* hide sidebar when not active */
+.hidden {
+  transform: translateX(-110%);
+}
+
+  .sidebar.show{transform:translateX(0);} /* Show sidebar when toggled */
+
+  .hamburger{
+    display:flex;flex-direction:column;gap:5px;cursor:pointer;
+    background:none;border:none;padding:8px;
+  }
+  .hamburger span{
+    width:24px;height:3px;background:var(--text);border-radius:2px;transition:.3s;
+  }
+
+  /* 💡 CLOSE BUTTON INSIDE SIDEBAR */
+  .close-btn{
+    position:absolute;top:12px;right:12px;background:none;
+    border:none;font-size:24px;color:var(--text);cursor:pointer;
+  }
+}
+
+/* =============================
+   📱 Mobile Sidebar + Hamburger
+   ============================= */
+@media (max-width: 1000px) {
+  /* Sidebar slides in from left */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 250px;
+    height: 100vh;
+    background: var(--card);
+    border-radius: 0;
+    box-shadow: 2px 0 15px var(--shadow);
+    transform: translateX(-110%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 1000;
+    padding: 1rem;
+  }
+
+  /* When shown */
+  .sidebar.show {
+    transform: translateX(0);
+  }
+
+  /* Hidden state */
+  .sidebar.hidden {
+    transform: translateX(-110%);
+  }
+
+  /* Close button (X) */
+  .close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  /* Hamburger icon */
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+  }
+
+  .hamburger span {
+    width: 25px;
+    height: 3px;
+    background: var(--text);
+    border-radius: 2px;
+    transition: 0.3s;
+  }
+}
+
+/* Hide hamburger on desktop */
+@media (min-width: 1001px) {
+  .hamburger {
+    display: none !important;
+  }
+}
+
+  </style>
+  
+<style>
+  /* NEW CODE 012: base pill shape (background-color itself is still
+     set dynamically by paintToggle() in the JS, this just gives it
+     the switch shape + the sliding white knob) */
+  #wtToggleSlider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #ccc;
+    border-radius: 28px;
+    transition: background-color 0.2s ease;
+  }
+ 
+  #wtToggleSlider::before {
+    content: "";
+    position: absolute;
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+ 
+  /* NEW CODE 012: when the (visually hidden) checkbox is checked,
+     slide the knob to the right. This is the standard
+     checkbox-plus-sibling-selector toggle-switch pattern — no JS
+     needed for the knob's position, only for the track color since
+     this codebase uses inline hsl(var(--x)) theme colors rather than
+     a CSS class for "on" state. */
+  #wtEnabledToggle:checked + #wtToggleSlider::before {
+    transform: translateX(22px);
+  }
+ 
+  /* Accessibility: visible focus ring when tabbing to the toggle,
+     since the real checkbox is opacity:0 and easy to lose track of. */
+  /* Demo Deposit toggle — same switch shape as the wire transfer one */
+  #demoToggleSlider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #ccc;
+    border-radius: 28px;
+    transition: background-color 0.2s ease;
+  }
+  #demoToggleSlider::before {
+    content: "";
+    position: absolute;
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  #demoEnabledToggle:checked + #demoToggleSlider { background: #28a745; }
+  #demoEnabledToggle:checked + #demoToggleSlider::before { transform: translateX(22px); }
+  #demoEnabledToggle:focus-visible + #demoToggleSlider {
+    outline: 2px solid var(--accent, #2b6ef6);
+    outline-offset: 2px;
+  }
+
+  #wtEnabledToggle:focus-visible + #wtToggleSlider {
+    outline: 2px solid var(--accent, #2b6ef6);
+    outline-offset: 2px;
+  }
+</style>
+ 
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar card" id="sidebar">
+         <button class="close-btn" id="closeSidebar">&times;</button>
+ 
+      <div class="brand">Admin</div>
+      <div class="muted">Control center</div>
+      <nav class="nav" id="mainNav">
+        <a href="#" data-section="dashboard-overview" class="active">Dashboard Overview</a>
+        <a href="#" data-section="active-users">Active Users</a>
+        <a href="#" data-section="kyc-center">KYC Center</a>
+        <a href="#" data-section="referrals">Referrals</a>
+        <a href="#" data-section="deposits">Deposits</a>
+        <a href="#" data-section="deposit-wallets">🔐 Deposit Wallets</a>
+        <a href="#" data-section="wire-transfer-settings">💳 Wire Transfer</a>
+        <!-- <a href="#" data-section="demo-settings">🎮 Demo Deposit</a> -->
+        <a href="#" data-section="traders-list">Traders List</a>
+        <a href="#" data-section="investment-plans">Investment Plans</a>
+        <a href="#" data-section="create-trader">Create Trader</a>
+        <a href="#" data-section="edit-trader">Edit Trader</a>
+        <a href="#" data-section="all-trades">All Trades</a>
+        <a href="#" data-section="edit-user">Edit User</a>
+        <a href="#" data-section="withdrawal-requests">Withdrawal Requests</a>
+        <a href="#" data-section="profit-manager">💰 Profit Manager</a>
+      </nav>
+      <div style="margin-top:auto; display:flex; gap:8px; align-items:center;">
+        <button id="toggleTheme" class="theme-toggle">Toggle theme</button>
+        <button id="logoutBtn" class="small-btn">Logout</button>
+      </div>
+    </aside>
+
+    <div class="content">
+      <!-- <header class="topbar">
+        <div style="display:flex;gap:12px;align-items:center">
+          <input id="globalSearch" class="search" placeholder="Search users, trades, assets...">
+        </div>
+        <div class="top-actions">
+          <div class="muted">Admin</div>
+          <div class="avatar" style="width:40px;height:40px;border-radius:8px;background:var(--glass);"></div>
+        </div>
+      </header> -->
+      <header class="topbar">
+  <div style="display:flex;gap:12px;align-items:center">
+    <!-- 💡 HAMBURGER BUTTON (Visible only on mobile) -->
+    <button class="hamburger" id="hamburger" style="display:none;">
+      <span></span><span></span><span></span>
+    </button>
+    <input id="globalSearch" class="search" placeholder="Search users, trades, assets...">
+  </div>
+  <div class="top-actions">
+    <div class="muted">Admin</div>
+    <div class="avatar" style="width:40px;height:40px;border-radius:8px;background:var(--glass);"></div>
+  </div>
+</header>
+
+
+
+      <main class="main-area">
+        <!-- Dashboard Overview -->
+        <section id="dashboard-overview" class="card section">
+          <div class="section-title">Dashboard Overview</div>
+          <div class="grid" id="dashboard-cards">
+            <div class="card">
+              <div class="muted">Registered Users</div>
+              <div id="registered" style="font-size:1.6rem; font-weight:700">—</div>
+            </div>
+            <div class="card">
+              <div class="muted">Total Deposited</div>
+              <div id="totalDeposited" style="font-size:1.6rem; font-weight:700">—</div>
+            </div>
+            <div class="card">
+              <div class="muted">Approved Deposits</div>
+              <div id="approvedDeposits" style="font-size:1.6rem; font-weight:700">—</div>
+            </div>
+            <div class="card">
+              <div class="muted">Pending Deposits</div>
+              <div id="pendingDeposits" style="font-size:1.6rem; font-weight:700">—</div>
+            </div>
+            <div class="card">
+              <div class="muted">Approved Withdrawals</div>
+              <div id="approvedWithdrawals" style="font-size:1.6rem; font-weight:700">—</div>
+            </div>
+            <div class="card">
+              <div class="muted">Pending Withdrawals</div>
+              <div id="pendingWithdrawals" style="font-size:1.6rem; font-weight:700">—</div>
+            </div>
+          </div>
+          <!-- small recent activity -->
+          <div style="margin-top:12px" class="card">
+            <div class="muted">Recent activity</div>
+            <div id="recentActivity" class="muted">No activity loaded.</div>
+          </div>
+        </section>
+
+        <!-- Active Users -->
+        <section id="active-users" class="card section" style="display:none">
+          <div class="section-title">Active Users</div>
+          <div class="table-wrapper card" style="padding:12px 14px;">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Balance</th><th>Profit</th><th>View</th><th>Copy History</th><th>Delete</th></tr>
+              </thead>
+              <tbody class="table-body"></tbody>
+            </table>
+          </div>
+          <div id="activeUsersMessage" class="muted" style="margin-top:8px"></div>
+        </section>
+
+        <!-- KYC Center -->
+        <section id="kyc-center" class="card section" style="display:none">
+          <div class="section-title">KYC Verification Center</div>
+          <div id="imageElement" class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;padding:12px;"></div>
+          <div class="card" style="margin-top:12px;">
+            <div class="muted">Recent transactions  </div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>From</th><th>Amount</th><th>Action</th></tr></thead>
+                <tbody class="table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Referrals -->
+        <section id="referrals" class="card section" style="display:none">
+          <div class="section-title">Referrals</div>
+          <div class="card row" style="align-items:center;justify-content:space-between">
+            <div>
+              <div id="username" style="font-weight:700">—</div>
+              <div id="email" class="muted">—</div>
+            </div>
+            <div>
+              <div class="muted">Referral code</div>
+              <input id="myInput" class="input" readonly style="width:220px" />
+              <button id="copyReferral" class="btn ghost">Copy</button>
+            </div>
+          </div>
+          <div class="card" style="margin-top:12px;">
+            <div class="muted">Referred Users</div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>Email</th></tr></thead>
+                <tbody class="table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Deposits -->
+        <section id="deposits" class="card section" style="display:none">
+          <div class="section-title">Deposits</div>
+          <div class="table-wrapper card">
+            <table>
+              <thead><tr><th>From</th><th>Amount</th><th>Method</th><th>Status</th><th> Time</th></tr></thead>
+              <tbody class="table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Crypto Deposit Wallets -->
+        <section id="deposit-wallets" class="card section" style="display:none">
+          <div class="section-title">🔐 Deposit Wallets</div>
+
+          <div id="dwIntegrityAlert" class="card" style="display:none;margin-bottom:12px;border:1px solid var(--danger);color:var(--danger);">
+            <strong>Integrity check failed.</strong> The saved wallets were changed outside the admin panel, so users are currently shown <em>no</em> crypto deposit channels.
+            Review every address below and save to restore them.
+          </div>
+
+          <div class="card" style="margin-bottom:12px;">
+            <div style="font-weight:700;">Crypto addresses shown on the Fund Account page</div>
+            <div class="muted" style="font-size:13px;margin-top:4px;">
+              Users only see enabled wallets listed here. Saving requires your password, every change is logged and emailed to support.
+              Double-check each address — deposits sent to a wrong address cannot be recovered.
+            </div>
+            <div id="dwMeta" class="muted" style="font-size:13px;margin-top:6px;"></div>
+          </div>
+
+          <div class="card">
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>Label (shown to users)</th><th>ID</th><th>Network</th><th>Address</th><th>Enabled</th><th></th></tr></thead>
+                <tbody id="dwTableBody"></tbody>
+              </table>
+            </div>
+            <div id="dwEmpty" class="muted" style="display:none;margin:10px 0;">No wallets yet — users can't make crypto deposits until you add one.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+              <button id="dwAddBtn" class="btn ghost">+ Add Wallet</button>
+              <button id="dwSaveBtn" class="btn">Save Changes</button>
+              <button id="dwReloadBtn" class="btn ghost">Discard &amp; Reload</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <div style="font-weight:700;margin-bottom:8px;">Change history</div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>Time</th><th>Admin</th><th>IP</th><th>Action</th><th>Details</th></tr></thead>
+                <tbody id="dwHistoryBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Wire Transfer Settings -->
+        <section id="wire-transfer-settings" class="card section" style="display:none">
+          <div class="section-title">💳 Wire Transfer</div>
+
+          <div class="card" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:700;">Show "Wire Transfer" in deposit methods</div>
+              <div class="muted" style="font-size:13px;">Takes effect immediately.</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:50px;height:28px;flex-shrink:0;">
+              <input type="checkbox" id="wtEnabledToggle" style="opacity:0;width:0;height:0;" />
+              <span id="wtToggleSlider"></span>
+            </label>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:700;margin-bottom:10px;">Bank details shown to users</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 12px;">
+              <div>
+                <label class="muted" for="wt_bankName">Bank Name</label>
+                <input id="wt_bankName" class="input" style="width:100%;" />
+              </div>
+              <div>
+                <label class="muted" for="wt_bankAddress">Bank Address</label>
+                <input id="wt_bankAddress" class="input" style="width:100%;" />
+              </div>
+              <div>
+                <label class="muted" for="wt_accountName">Account Name</label>
+                <input id="wt_accountName" class="input" style="width:100%;" />
+              </div>
+              <div>
+                <label class="muted" for="wt_accountNumber">Account Number</label>
+                <input id="wt_accountNumber" class="input" style="width:100%;" />
+              </div>
+              <div>
+                <label class="muted" for="wt_routingOrSortCode">Routing / Sort Code</label>
+                <input id="wt_routingOrSortCode" class="input" style="width:100%;" />
+              </div>
+              <div>
+                <label class="muted" for="wt_swiftBic">SWIFT / BIC</label>
+                <input id="wt_swiftBic" class="input" style="width:100%;" />
+              </div>
+            </div>
+            <label class="muted" for="wt_referenceNote" style="display:block;margin-top:8px;">Reference Note</label>
+            <textarea id="wt_referenceNote" class="input" rows="3" style="width:100%;margin-bottom:12px;resize:vertical;font-family:inherit;"></textarea>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button id="wtSaveBtn" class="btn">Save</button>
+              <button id="wtResetBtn" class="btn" style="background:var(--danger);">Reset to Demo Defaults</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Demo Deposit Settings -->
+        <!-- <section id="demo-settings" class="card section" style="display:none">
+          <div class="section-title">🎮 Demo Deposit</div> -->
+
+          <!-- <div class="card" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:700;">Show "Demo" in deposit methods</div>
+              <div class="muted" style="font-size:13px;">When on, users see a Demo option on the Fund Account page. Takes effect immediately.</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:50px;height:28px;flex-shrink:0;">
+              <input type="checkbox" id="demoEnabledToggle" style="opacity:0;width:0;height:0;" />
+              <span id="demoToggleSlider"></span>
+            </label>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:700;margin-bottom:10px;">Popup message</div>
+            <label class="muted" for="demo_title">Title</label>
+            <input id="demo_title" class="input" maxlength="200" placeholder="e.g. Demo Mode 🎉" style="width:100%;margin-bottom:8px;" />
+            <label class="muted" for="demo_message">Message</label>
+            <textarea id="demo_message" class="input" maxlength="5000" rows="5" placeholder="What users see when they pick Demo…" style="width:100%;margin-bottom:8px;resize:vertical;font-family:inherit;"></textarea>
+            <div id="demo_meta" class="muted" style="font-size:12px;margin-bottom:12px;"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button id="demoSaveBtn" class="btn">Save Message</button>
+              <button id="demoPreviewBtn" class="btn ghost">Preview</button>
+              <button id="demoDeleteBtn" class="btn" style="background:var(--danger);">Delete Message</button>
+            </div>
+          </div>
+        </section> -->
+
+        <!-- Traders List -->
+        <section id="traders-list" class="card section" style="display:none">
+          <div class="section-title">Traders List</div>
+          <div class="table-wrapper card">
+            <table>
+              <thead><tr><th>Name</th><th>ID</th><th>Create Signal</th><th>Edit Profile</th></tr></thead>
+              <tbody class="table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Investment Plans -->
+        <section id="investment-plans" class="card section" style="display:none">
+          <div class="section-title">Investment Plans</div>
+          <div class="table-wrapper card">
+            <table>
+              <thead><tr><th>From</th><th>Amount</th><th>Plan</th><th>Status</th><th>startTime </th><th>endTime </th><th>Action</th></tr></thead>
+              <tbody class="table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Create Trader -->
+        <section id="create-trader" class="card section" style="display:none">
+          <div class="section-title">Create Trader</div>
+          <div class="card" style="display:flex;gap:12px">
+            <div style="flex:1">
+              <label class="muted">Name</label><input id="name" class="input" />
+              <label class="muted">Level</label><input id="level" class="input" />
+              <label class="muted">Rating</label><input id="rating" class="input" />
+              <label class="muted">Commission</label><input id="commission" class="input" />
+              <label class="muted">PNL</label><input id="pnl" class="input" />
+            </div>
+            <div style="flex:1">
+              <label class="muted">Profile ID</label><input id="profileId" class="input" />
+              <label class="muted">Account Level</label><input id="accountLevel" class="input" />
+              <label class="muted">Type</label><input id="type" class="input" />
+              <label class="muted">Followers</label><input id="followers" class="input" />
+              <label class="muted">Watchers</label><input id="watchers" class="input" />
+              <label class="muted">Profitable Trades</label><input id="profitableTrade" class="input" />
+              <label class="muted">Number of Trades</label><input id="numberOfTrades" class="input" type="number" min="0" />
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <div class="muted">Upload Photo</div>
+            <input id="image-upload" type="file" accept="image/*" />
+            <div id="image-preview" style="margin-top:8px;padding:12px;border-radius:8px;background:var(--glass);max-width:220px;">
+              <img id="uploaded-image" src="" alt="" style="width:100%;display:none;border-radius:8px;" />
+            </div>
+            <div style="margin-top:12px">
+              <button id="registerBtn" class="btn">Create Trader</button>
+              <div class="live-section muted" style="display:inline-block;margin-left:12px"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Edit Trader -->
+        <section id="edit-trader" class="card section" style="display:none">
+          <div class="section-title">Edit Trader</div>
+          <div class="card">
+            <div class="form-row">
+              <div style="flex:1">
+                <label class="muted">Name</label><input id="name_edit" class="input" />
+                <label class="muted">Level</label><input id="level_edit" class="input" />
+                <label class="muted">Rating</label><input id="rating_edit" class="input" />
+                <label class="muted">Commission</label><input id="commission_edit" class="input" />
+              </div>
+              <div style="flex:1">
+                <label class="muted">PNL</label><input id="pnl_edit" class="input" />
+                <label class="muted">Profile ID</label><input id="profileId_edit" class="input" />
+                <label class="muted">Followers</label><input id="followers_edit" class="input" />
+                <label class="muted">Watchers</label><input id="watchers_edit" class="input" />
+                <label class="muted">Number of Trades</label><input id="numberOfTrades_edit" class="input" type="number" min="0" />
+              </div>
+            </div>
+            <div style="margin-top:12px">
+              <div class="muted">Photo (leave empty to keep the current one)</div>
+              <input id="image-upload_edit" type="file" accept="image/*" />
+              <div style="margin-top:8px;padding:12px;border-radius:8px;background:var(--glass);max-width:220px;">
+                <img id="uploaded-image_edit" src="" alt="" style="width:100%;display:none;border-radius:8px;" />
+              </div>
+            </div>
+            <div style="margin-top:12px">
+              <button id="updateTraderBtn" class="btn primary">Update Trader</button>
+              <div class="live-section muted" style="display:inline-block;margin-left:12px"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- All Trades -->
+        <section id="all-trades" class="card section" style="display:none">
+          <div class="section-title">All Trades</div>
+          <div class="table-wrapper card" style="padding:12px;">
+            <table>
+              <thead><tr><th>Owner</th><th>Asset</th><th>Amount</th><th>Leverage</th><th>Duration</th><th>Countdown</th><th>P/L</th><th>Result</th><th>Status</th><th>Command</th><th>Actions</th></tr></thead>
+              <tbody id="tradeTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Edit User -->
+        <section id="edit-user" class="card section" style="display:none">
+          <div class="section-title">Edit User Info</div>
+          <div class="card form-row">
+            <div style="flex:1">
+              <label class="muted">First name</label><input id="firstName" class="input" />
+              <label class="muted">Last name</label><input id="lastName" class="input" />
+              <label class="muted">Email</label><input id="email_user" class="input" />
+              <label class="muted">Balance</label><input id="balance" class="input" />
+              <label class="muted">Profit</label><input id="profit" class="input" />
+            </div>
+            <div style="flex:1">
+              <label class="muted">Country</label><input id="country" class="input" />
+              <label class="muted">Copytrading</label><input id="copytrading" class="input" />
+              <label class="muted">KYC</label><input id="kyc" class="input" />
+              <label class="muted">Referral Bonus</label><input id="referalBonus" class="input" />
+               <label class="muted">Referred By</label><input id="referredBy" class="input" />
+              <label class="muted">_id</label><input id="_id" class="input" readonly />
+              <div class="edit-actions">
+                <button id="enableBtn" class="small-btn success">Enable</button>
+                <button id="disableBtn" class="small-btn danger">Disable</button>
+                <button id="updateBtn_user" class="btn">Save</button>
+                <button id="loginAsUserBtn" class="btn" style="background:var(--success);">Login as User</button>
+                <div class="live-section muted"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── REGISTRATION / KYC SURVEY DATA (collapsible groups) ── -->
+          <div class="card" style="margin-top:14px;" id="surveyCard">
+            <div class="sv-head">
+              <div class="section-title" style="font-size:1rem;margin:0;">📋 Registration Details</div>
+              <span id="surveyCompletedBadge" class="sv-badge sv-badge-ok" style="display:none;">Completed</span>
+              <span id="surveyPendingBadge" class="sv-badge sv-badge-pending" style="display:none;">Not Completed</span>
+            </div>
+            <details class="sv-group" open>
+              <summary>📍 Contact &amp; Account</summary>
+              <div class="sv-grid">
+                <div class="sv-row"><span class="sv-label">Phone</span><span id="sv_phone" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Account Currency</span><span id="sv_currency" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Terms Accepted</span><span id="sv_terms" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Survey Country</span><span id="sv_country" class="sv-value">—</span></div>
+              </div>
+            </details>
+            <details class="sv-group">
+              <summary>📈 Trading Experience</summary>
+              <div class="sv-grid">
+                <div class="sv-row"><span class="sv-label">Years of Experience</span><span id="sv_years" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Trading Frequency</span><span id="sv_freq" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Instruments Traded</span><span id="sv_instruments" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Knowledge Level</span><span id="sv_knowledge" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Preferred Markets</span><span id="sv_markets" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Trading Platforms Used</span><span id="sv_platforms" class="sv-value">—</span></div>
+              </div>
+            </details>
+            <details class="sv-group">
+              <summary>💰 Annual Earnings / Net Worth</summary>
+              <div class="sv-grid">
+                <div class="sv-row"><span class="sv-label">Annual Income</span><span id="sv_income" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Primary Source of Income</span><span id="sv_incomeSource" class="sv-value">—</span></div>
+                <div class="sv-row"><span class="sv-label">Country of Tax Residency</span><span id="sv_taxCountry" class="sv-value">—</span></div>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <!-- Withdrawal Requests -->
+        <section id="withdrawal-requests" class="card section" style="display:none">
+          <div class="section-title">Withdrawal Requests</div>
+          <div class="table-wrapper card" style="padding:12px;">
+            <table>
+              <thead><tr><th>From</th><th>Amount</th><th>Method</th><th>Address</th><th>Status</th><th>Approve</th><th>Decline</th><th>Date</th></tr></thead>
+              <tbody class="table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Profit Manager -->
+        <section id="profit-manager" class="card section" style="display:none">
+          <div class="section-title">💰 Profit Manager</div>
+
+          <!-- Search user -->
+          <div class="card" style="margin-bottom:12px;">
+            <div class="muted" style="margin-bottom:8px;">Search user by email or name</div>
+            <div class="row" style="gap:8px;flex-wrap:wrap;">
+              <input id="pm-search" class="input" style="flex:1;min-width:220px;" placeholder="Type email or name…" />
+              <button class="btn" id="pm-search-btn">Search</button>
+            </div>
+            <div id="pm-search-results" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+          </div>
+
+          <!-- Selected user banner -->
+          <div id="pm-user-banner" class="card" style="display:none;margin-bottom:12px;background:linear-gradient(135deg,rgba(43,110,246,0.08),rgba(43,110,246,0.03));border:1px solid rgba(43,110,246,0.15);">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <div>
+                <div id="pm-user-name" style="font-weight:700;font-size:1.05rem;"></div>
+                <div id="pm-user-email" class="muted" style="font-size:13px;"></div>
+              </div>
+              <div style="display:flex;gap:18px;align-items:center;">
+                <div>
+                  <div class="muted" style="font-size:12px;">Current Balance</div>
+                  <div id="pm-user-balance" style="font-size:1.3rem;font-weight:700;color:var(--accent);">—</div>
+                </div>
+                <div>
+                  <div class="muted" style="font-size:12px;">Current Profit</div>
+                  <div id="pm-user-profit" style="font-size:1.3rem;font-weight:700;color:var(--success);">—</div>
+                </div>
+                <button id="pm-refresh-btn" class="btn ghost" style="font-size:12px;padding:6px 10px;">↻ Refresh</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add / Deduct panels side by side -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="pm-panels">
+            <!-- ADD PROFIT -->
+            <div class="card" style="border-top:3px solid var(--success);">
+              <div style="font-weight:700;margin-bottom:10px;color:var(--success);">➕ Add Profit</div>
+              <label class="muted">Amount (USD)</label>
+              <input id="pm-add-amount" class="input" type="number" min="0" step="0.01" placeholder="e.g. 500" style="width:100%;margin-bottom:8px;" />
+              <label class="muted">Note (optional)</label>
+              <input id="pm-add-note" class="input" placeholder="e.g. monthly bonus" style="width:100%;margin-bottom:12px;" />
+              <button id="pm-add-btn" class="btn" style="background:var(--success);width:100%;">Add Profit</button>
+            </div>
+
+            <!-- DEDUCT PROFIT -->
+            <div class="card" style="border-top:3px solid var(--danger);">
+              <div style="font-weight:700;margin-bottom:10px;color:var(--danger);">➖ Deduct Profit</div>
+              <label class="muted">Amount (USD)</label>
+              <input id="pm-deduct-amount" class="input" type="number" min="0" step="0.01" placeholder="e.g. 200" style="width:100%;margin-bottom:8px;" />
+              <label class="muted">Note (optional)</label>
+              <input id="pm-deduct-note" class="input" placeholder="e.g. fee deduction" style="width:100%;margin-bottom:12px;" />
+              <button id="pm-deduct-btn" class="btn" style="background:var(--danger);width:100%;">Deduct Profit</button>
+            </div>
+          </div>
+
+          <!-- Profit history log -->
+          <div class="card" style="margin-top:12px;">
+            <div class="section-title" style="font-size:0.95rem;">📋 Profit Adjustment Log</div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>User</th><th>Type</th><th>Amount</th><th>Note</th><th>Before</th><th>After</th><th>Time</th></tr></thead>
+                <tbody id="pm-log-body"></tbody>
+              </table>
+            </div>
+            <div id="pm-no-log" class="muted" style="margin-top:8px;text-align:center;">No adjustments recorded yet.</div>
+          </div>
+
+          <!-- All users profit overview -->
+          <div class="card" style="margin-top:12px;">
+            <div class="section-title" style="font-size:0.95rem;margin-bottom:8px;">📊 All Users — Profit Overview</div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>Name</th><th>Email</th><th>Balance</th><th>Profit</th><th>Select</th></tr></thead>
+                <tbody id="pm-all-users-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+    <script>
+document.addEventListener("DOMContentLoaded", () => {
+  const sidebar = document.getElementById("sidebar");
+  const hamburger = document.getElementById("hamburger");
+  const closeSidebar = document.getElementById("closeSidebar");
+
+  function handleResize() {
+    if (window.innerWidth <= 1000) {
+      hamburger.style.display = "flex";
+      sidebar.classList.add("hidden");
+    } else {
+      hamburger.style.display = "none";
+      sidebar.classList.remove("hidden", "show");
+    }
+  }
+
+  window.addEventListener("resize", handleResize);
+  handleResize();
+
+  // ✅ Open sidebar
+  hamburger.addEventListener("click", () => {
+    sidebar.classList.add("show");
+    sidebar.classList.remove("hidden");
+  });
+
+  // ✅ Close sidebar
+  closeSidebar.addEventListener("click", () => {
+    sidebar.classList.remove("show");
+    sidebar.classList.add("hidden");
+  });
+});
+</script>
+
+  </div>
+
+
+  <!-- SCRIPT: UI Shell -->
+  <script>
+    // SECTION NAV
+    function showSection(id) {
+
+        
+      document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'block';
+      // update nav active
+      document.querySelectorAll('#mainNav a').forEach(a => a.classList.remove('active'));
+      const navLink = document.querySelector(`#mainNav a[data-section="${id}"]`);
+      if (navLink) navLink.classList.add('active');
+      // remember the section in the URL so a refresh comes back here
+      if (el) history.replaceState(null, '', '#' + id);
+      // scroll main area top
+      document.querySelector('.main-area').scrollTop = 0;
+    }
+    document.querySelectorAll('#mainNav a').forEach(a=>{
+      a.addEventListener('click', (e)=>{
+        e.preventDefault();
+        const s = a.getAttribute('data-section');
+        showSection(s);
+      });
+    });
+
+    // THEME
+    const themeBtn = document.getElementById('toggleTheme');
+    function setTheme(theme) {
+      if (theme === 'dark') document.body.classList.add('dark');
+      else document.body.classList.remove('dark');
+      localStorage.setItem('admin_theme', theme);
+    }
+    const stored = localStorage.getItem('admin_theme') || 'dark';
+    setTheme(stored);
+    themeBtn.addEventListener('click', ()=>{
+      const next = document.body.classList.contains('dark') ? 'light' : 'dark';
+      setTheme(next);
+    });
+
+    // copy referral
+    document.getElementById('copyReferral').addEventListener('click',()=>{
+      const el = document.getElementById('myInput');
+      el.select(); el.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(el.value).then(()=>{ alert('Copied'); });
+    });
+
+    // logout
+    document.getElementById('logoutBtn').addEventListener('click', ()=>{
+      localStorage.removeItem('user'); localStorage.removeItem('adminToken'); location.reload();
+    });
+
+    // expose showSection globally for scripts
+    window.showSection = showSection;
+  </script>
+
+  <!-- ---------------------------
+       USER SCRIPTS INTEGRATION
+       Each major script block you provided is included here.
+       I wrapped them into self-invoking functions to avoid collisions,
+       and I exposed action functions (used by onclick) to window where needed.
+       --------------------------- -->
+
+  <!-- Script 1: Landing page + system metrics -->
+  <script>
+  (async function LandingPageScript(){
+    async function fetchUserInfo() {
+      var parsedData = localStorage.getItem('user')
+      var user = JSON.parse((parsedData))
+      return user;
+    }
+
+    async function fetchUser() {
+      const response = await $.ajax({
+        type: "GET",
+        url: 'https://vantage-render.onrender.com/users',
+        dataType: "json",
+        timeout: 30000,
+      });
+
+      // sometimes API returns object with data property
+      const data = response && response.data ? response.data : response;
+      console.log('Landing fetched users:', data);
+      return data;
+    }
+
+    function internal_sendUserDetail(user){
+      // original behavior stored user and navigated to userinfo page.
+      // adapt: store and show edit-user section
+      localStorage.setItem("user", user);
+      // if userinfo.html existed you'd go there, but here we open Edit User view
+      try { showSection('edit-user'); } catch(e){}
+    }
+    // expose it
+    window.landing_sendUserDetail = internal_sendUserDetail;
+
+    $(document).ready(async function () {
+      // fetch current user info from localStorage
+      const userInfo = await fetchUserInfo().catch(()=>null);
+      if (userInfo) {
+        $('#username').html((userInfo.firstName || '') + " " + (userInfo.lastName || ''));
+        $('#email').html(userInfo.email || '');
+      }
+
+      const users = await fetchUser().catch(()=>[]);
+      const registeredUsers = users.length || 0;
+      $('#registered').html(registeredUsers);
+
+      let approvedDeposits = 0;
+      let pendingDeposits = 0;
+      let approvedWithdrawals = 0;
+      let pendingWithdrawals = 0;
+      let totalDeposited = 0;
+      let withdrawnTotal = 0;
+
+      users.filter(u => (u.email || '').toLowerCase() !== HIDDEN_EMAIL).forEach(user => {
+        (user.transactions || []).forEach(tx => {
+          if (tx.status === "Approved") {
+            approvedDeposits += 1;
+            totalDeposited += Number(tx.amount || 0);
+          } else if (tx.status === "pending") {
+            pendingDeposits += 1;
+          }
+        });
+        (user.withdrawals || []).forEach(wd => {
+          if (wd.status === "Approved") {
+            approvedWithdrawals += 1;
+            withdrawnTotal += Number(wd.amount || 0);
+          } else if (wd.status === "pending") {
+            pendingWithdrawals += 1;
+          }
+        });
+      });
+
+      $('#totalDeposited').html("$" + totalDeposited);
+      $('#approvedDeposits').html(approvedDeposits);
+      $('#pendingDeposits').html(pendingDeposits);
+      $('#approvedWithdrawals').html(approvedWithdrawals);
+      $('#pendingWithdrawals').html(pendingWithdrawals);
+
+      $('#recentActivity').text(`Loaded ${registeredUsers} users.`);
+    });
+  })();
+  </script>
+
+  <!-- Script 2: Active users -->
+  <script>
+  (function ActiveUsersScript(){
+
+    const BASE_URL = "https://vantage-render.onrender.com";
+    
+    async function fetchUser() {
+          const response = await $.ajax({
+            type: "GET",
+            url: 'https://vantage-render.onrender.com/users',
+            dataType: "json",
+            timeout: 30000,
+          });
+          const data = response && response.data ? response.data : response;
+          return data;
+    }
+
+    async function fetchUserInfo_local() {
+    try {
+      const stored = localStorage.getItem("updatedUseremal");
+      if (!stored) return null;
+
+      const useremm = stored.trim().replace(/^"|"$/g, '');
+     
+
+      // Optionally refetch latest data from backend
+      const response = await $.ajax({
+        type: "GET",
+        url: `${BASE_URL}/users/${useremm}`,
+        dataType: "json",
+        timeout: 30000,
+      });
+
+      const data = response && response.data ? response.data : response;
+      localStorage.setItem("updatedUser", JSON.stringify(data)); // keep latest
+
+      
+      return data;
+    } catch (err) {
+      console.error("Error in fetchUserInfo_local:", err);
+      return null;
+    }
+  }
+
+  function sendEdUserDetail(user) {
+  localStorage.setItem("updatedUseremal", JSON.stringify(user));
+  showSection('edit-user');
+
+  // ensure correct user loads immediately
+  setTimeout(() => window.populateEditUserForm && window.populateEditUserForm(), 200);
+}
+    function pushUserDetail(userem){
+      localStorage.setItem("userem",userem);
+      // open copy history area (we don't have a dedicated view, open deposits)
+      showSection('deposits');
+    }
+
+    async function deleteUser(userem){
+      var userconfirmed=  confirm("ARE YOU SURE YOU WANT TO DELETE THIS USER" +" "+ userem)
+      if (userconfirmed) {
+        try {
+          const response = await $.ajax({
+            type: "DELETE",
+            url: `https://vantage-render.onrender.com/users/${userem}/delete`,
+            dataType: "json",
+            timeout: 30000,
+          });
+          $('.active-users .live-section').addClass("alert-danger").text("User deleted successfully");
+          alert("User Deleted");
+          setTimeout(function () { showSection('active-users'); loadActiveUsers(); }, 1200);
+        } catch(err) {
+          alert("Failed to delete user: "+err);
+        }
+      } else { alert("kept") }
+    }
+
+    // expose for onclick from DOM
+    window.sendEdUserDetail = sendEdUserDetail;
+    window.pushUserDetail = pushUserDetail;
+    window.deleteUser = deleteUser;
+
+    async function loadActiveUsers() {
+      const users = await fetchUser().catch(()=>[]);
+      const tbl = document.querySelector('#active-users .table-body');
+      tbl.innerHTML = '';
+      users.filter(u => (u.email || '').toLowerCase() !== HIDDEN_EMAIL).forEach(function (user) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${user.firstName || ''}</td>
+          <td>$${user.balance || 0}</td>
+          <td>$${user.profit || 0}</td>
+          <td><button class="table-btn primary" onclick="sendEdUserDetail('${user.email}')">View</button></td>
+          <td><button class="table-btn primary" onclick="pushUserDetail('${user.email}')">Copy</button></td>
+          <td><button class="table-btn danger" onclick="deleteUser('${user.email}')">Delete</button></td>
+        `;
+        tbl.appendChild(tr);
+      });
+    }
+
+    // load initially when document ready
+    $(document).ready(function(){ loadActiveUsers(); });
+    // also expose loader
+    window.loadActiveUsers = loadActiveUsers;
+  })();
+  </script>
+<style>
+    /* Deposit table buttons */
+.table-body a.btn-primary {
+  display: inline-block;
+  padding: 6px 12px;
+  margin-right: 6px;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  color: white;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s;
+  font-size: 0.85rem;
+}
+
+/* Approve button */
+.table-body a.btn-primary:nth-child(1) {
+  background-color: var(--success);
+}
+
+.table-body a.btn-primary:nth-child(1):hover {
+  background-color: #1e7e34; /* slightly darker green */
+  transform: scale(1.05);
+}
+
+/* Decline button */
+.table-body a.btn-primary:nth-child(2) {
+  background-color: var(--danger);
+}
+
+.table-body a.btn-primary:nth-child(2):hover {
+  background-color: #c82333; /* slightly darker red */
+  transform: scale(1.05);
+}
+
+/* User Info button */
+.table-body a.btn-primary:nth-child(3) {
+  background-color: var(--accent);
+}
+
+.table-body a.btn-primary:nth-child(3):hover {
+  background-color: #1a5cd6; /* slightly darker accent */
+  transform: scale(1.05);
+}
+.small-btn.warning {
+  background: #f59e0b;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+.small-btn.warning:hover {
+  background: #d97706;
+  transform: scale(1.05);
+}
+
+/* Optional: Add spacing and smaller font for mobile */
+@media (max-width: 1000px) {
+  .table-body a.btn-primary {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    display: inline-block;
+  }
+
+  .small-btn.warning {
+  background: #f59e0b;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+.small-btn.warning:hover {
+  background: #d97706;
+  transform: scale(1.05);
+}
+
+}
+
+</style>
+  <!-- Script 3: KYC page -->
+   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+    
+
+// ✅ Approve (Verify) KYC
+async function verifyDocument(userId) {
+  if (!confirm("Approve this user's KYC verification?")) return;
+
+  try {
+    const response = await $.ajax({
+      type: "PUT",
+      url: `${BASE_URL}/transactions/${userId}/kyc/approve`,
+      dataType: "json",
+      timeout: 30000,
+    });
+
+    if (response.success) {
+      Swal.fire({
+        icon: "success",
+        title: "KYC Approved",
+        text: "The user's KYC has been verified successfully.",
+        confirmButtonColor: "#10B981",
+      });
+      // Refresh your user list or section
+    //   fetchUser(); 
+    } else {
+      Swal.fire({
+        icon: "error",
+        title: "Approval Failed",
+        text: response.message || "Could not approve KYC.",
+      });
+    }
+  } catch (err) {
+    console.error("Error approving KYC:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Server Error",
+      text: "An error occurred while approving the KYC.",
+    });
+  }
+}
+
+// ❌ Reject KYC
+async function rejectDocument(userId) {
+  const { value: reason } = await Swal.fire({
+    title: "Reject KYC Verification",
+    input: "text",
+    inputLabel: "Reason for rejection (optional)",
+    inputPlaceholder: "Enter reason...",
+    showCancelButton: true,
+    confirmButtonText: "Reject",
+    confirmButtonColor: "#EF4444",
+  });
+
+  if (reason === undefined) return; // user canceled
+
+  try {
+    const response = await $.ajax({
+      type: "PUT",
+      url: `${BASE_URL}/transactions/${userId}/kyc/reject`,
+      data: JSON.stringify({ reason }),
+      contentType: "application/json",
+      dataType: "json",
+      timeout: 30000,
+    });
+
+    if (response.success) {
+      Swal.fire({
+        icon: "success",
+        title: "KYC Rejected",
+        text: "The user has been notified of the rejection.",
+        confirmButtonColor: "#EF4444",
+      });
+      fetchUser(); 
+    } else {
+      Swal.fire({
+        icon: "error",
+        title: "Rejection Failed",
+        text: response.message || "Could not reject KYC.",
+      });
+    }
+  } catch (err) {
+    console.error("Error rejecting KYC:", err);
+    Swal.fire({
+      icon: "error",
+      title: "Server Error",
+      text: "An error occurred while rejecting the KYC.",
+    });
+  }
+}
+async function fetchImages() {
+      try {
+        const response = await fetch('https://vantage-render.onrender.com/auth/kyc/fetch-images');
+        if (response.ok) {
+          const images = await response.json();
+          displayImages(images);
+        } else {
+          console.error('Error fetching images:', response.status);
+        }
+      } catch (error) { console.error('Error fetching images:', error); }
+    }
+
+async function deleteImage(imageId) {
+  if (!confirm("Are you sure you want to delete this image?")) return;
+
+  try {
+    const response = await fetch(`https://vantage-render.onrender.com/auth/kyc/delete-image/${imageId}`, {
+      method: "DELETE",
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      alert("✅ Image deleted successfully.");
+      fetchImages(); // Refresh list
+    } else {
+      alert("❌ Error deleting image: " + (result.message || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Error deleting image:", err);
+    alert("Server error deleting image.");
+  }
+}
+
+  (function KycScript(){
+    function displayImages(images) {
+       console.log('KYC images', images);
+       $('#imageElement').empty();
+       images.forEach(image => { 
+  const container = $(`
+    <div class="card" style="padding:8px; position: relative;">
+      <img src="${image.imageUrl}" style="width:100%;height:160px;object-fit:cover;border-radius:8px" />
+      <div style="margin-top:8px">
+        <div style="font-weight:700">${image.owner}</div>
+        <div class="muted">Document: ${image.docNum}</div>
+        <div class="muted">Status: ${image.status}</div>
+        <div style="margin-top:8px; display:flex; gap:6px;">
+          <button class="small-btn success" onclick="verifyDocument('${image.ownerdet}')">Verify</button>
+          <button class="small-btn danger" onclick="rejectDocument('${image.ownerdet}')">Reject</button>
+          <button class="small-btn warning" onclick="deleteImage('${image._id}')">Delete</button>
+        </div>
+      </div>
+    </div>
+  `);
+  $('#imageElement').append(container);
+});
+
+    }
+function displayImages(images) {
+       console.log('KYC images', images);
+       $('#imageElement').empty();
+       images.forEach(image => { 
+  const container = $(`
+    <div class="card" style="padding:8px; position: relative;">
+      <img src="${image.imageUrl}" style="width:100%;height:160px;object-fit:cover;border-radius:8px" />
+      <div style="margin-top:8px">
+        <div style="font-weight:700">${image.owner}</div>
+        <div class="muted">Document: ${image.docNum}</div>
+        <div class="muted">Status: ${image.status}</div>
+        <div style="margin-top:8px; display:flex; gap:6px;">
+          <button class="small-btn success" onclick="verifyDocument('${image.ownerdet}')">Verify</button>
+          <button class="small-btn danger" onclick="rejectDocument('${image.ownerdet}')">Reject</button>
+          <button class="small-btn warning" onclick="deleteImage('${image._id}')">Delete</button>
+        </div>
+      </div>
+    </div>
+  `);
+  $('#imageElement').append(container);
+});
+
+    }
+
+    async function fetchImages() {
+      try {
+        const response = await fetch('https://vantage-render.onrender.com/auth/kyc/fetch-images');
+        if (response.ok) {
+          const images = await response.json();
+          displayImages(images);
+        } else {
+          console.error('Error fetching images:', response.status);
+        }
+      } catch (error) { console.error('Error fetching images:', error); }
+    }
+
+    async function fetchUser() {
+      const response = await $.ajax({
+        type: "GET",
+        url: 'https://vantage-render.onrender.com/users',
+        dataType: "json",
+        timeout: 30000,
+      });
+      const data = response && response.data ? response.data : response;
+      return data;
+    }
+
+    function sendUserDetail(user) {
+  localStorage.setItem("updatedUseremal", JSON.stringify(user));
+  showSection('edit-user');
+
+  // ensure correct user loads immediately
+  setTimeout(() => window.populateEditUserForm && window.populateEditUserForm(), 200);
+}
+
+    // populate transactions table for kyc view
+    async function loadKYCTransactions(){
+      const users = await fetchUser().catch(()=>[]);
+      const tbody = $('#kyc-center .table-body');
+      tbody.empty();
+      users.filter(u => (u.email || '').toLowerCase() !== HIDDEN_EMAIL).forEach(function(user){
+        (user.transactions || []).forEach(function(transac){
+          const row = $('<tr>');
+          row.append(`<td>${transac.from}</td>`);
+          row.append(`<td>$${transac.amount}</td>`);
+        //   row.append(`<td><button class="table-btn primary" onclick="sendUserDetail('${user.email}')">User Info</button></td>`);
+          tbody.append(row);
+        });
+      });
+    }
+function sendUserDetail(user) {
+  localStorage.setItem("updatedUseremal", JSON.stringify(user));
+  showSection('edit-user');
+
+  // ensure correct user loads immediately
+  setTimeout(() => window.populateEditUserForm && window.populateEditUserForm(), 200);
+}
+    // expose sendUserDetail to global (if needed)
+    window.kyc_sendUserDetail = sendUserDetail;
+
+    $(document).ready(function(){ fetchImages(); loadKYCTransactions(); });
+  })();
+  </script>
+
+  <!-- Script 4: Referrals -->
+  <script>
+  (function ReferralsScript(){
+    async function fetchUserInfo() {
+      var parsedData = localStorage.getItem('user');
+      var userFromLS = JSON.parse((parsedData || "{}"));
+      if (!userFromLS || !userFromLS.email) return userFromLS;
+      const response = await $.ajax({
+        type: "GET",
+        url: `https://vantage-render.onrender.com/users/${userFromLS.email}`,
+        dataType: "json",
+        timeout: 30000,
+        success: async function (data) {
+        //   Object.assign(window.currentUserForRef, data.data || {});
+          await localStorage.setItem("user", JSON.stringify(data.data || {}));
+        },
+        error: function () { /* ignore */ }
+      });
+      return response && response.data ? response.data : response;
+    }
+
+    async function loadReferrals(){
+      const userInfo = await fetchUserInfo().catch(()=> (JSON.parse(localStorage.getItem('user') || '{}')));
+      if (!userInfo) return;
+      $("#username").html((userInfo.firstName||'') + " " + (userInfo.lastName||''));
+      $("#email").html(userInfo.email||'');
+      $("#accountBalance").html('$'+ (userInfo.balance||0));
+      $("#profit").html('$'+ (userInfo.profit||0));
+      $("#myInput").val(userInfo.referralCode || '');
+
+      const tbody = $('#referrals .table-body');
+      tbody.empty();
+      (userInfo.referredUsers || []).forEach(function(u){
+        const row = $('<tr>').append(`<td>${u}</td>`);
+        tbody.append(row);
+      });
+    }
+
+    $(document).ready(function(){ loadReferrals(); });
+  })();
+  </script>
+
+  <!-- Script 5: Deposits -->
+  <script>
+  (function DepositsScript(){
+  async function fetchUserTx(id) {
+    const response = await $.ajax({
+      type: "GET",
+      url: `https://vantage-render.onrender.com/transactions/${id}/deposit/history`,
+      dataType: "json",
+      timeout: 30000,
+    });
+    return response && response.data ? response.data : response;
+  }
+
+  async function fetchUserFromLocalStorage() {
+    const parsedData = localStorage.getItem('user');
+    const user = JSON.parse(parsedData || "{}");
+    return user;
+  }
+
+  async function getAllUsers() {
+    const response = await $.ajax({
+      type: "GET",
+      url: "https://vantage-render.onrender.com/users",
+      dataType: "json",
+      timeout: 30000,
+    });
+    console.log(response.data);
+    return response.data;
+  }
+
+  // Navigate to user info page
+  window.openUserInfo = function(email) {
+    localStorage.setItem("userem", email);
+    showSection('edit-user');
+    fetchUserInfo_local().then(() => {
+      populateEditUserForm();
+    });
+  }
+
+  // Decline a deposit
+  window.declineDeposit = async function(userId, transactionId) {
+    try {
+      const response = await $.ajax({
+        type: "PUT",
+        url: `https://vantage-render.onrender.com/transactions/${userId}/transactions/${transactionId}/decline`,
+        dataType: "json",
+        data: { _id: userId, transactionId },
+        timeout: 30000
+      });
+      alert("Deposit Declined");
+    
+      return response.data;
+    } catch (err) {
+      console.error(err);
+      alert("Error declining deposit");
+    }
+  }
+
+  // Approve a deposit
+  window.approveDeposit = async function(userId, transactionId) {
+    try {
+      const response = await $.ajax({
+        type: "PUT",
+        url: `https://vantage-render.onrender.com/transactions/${userId}/transactions/${transactionId}/confirm`,
+        dataType: "json",
+        data: { _id: userId, transactionId },
+        timeout: 30000
+      });
+      alert("Deposit Approved");
+     
+      return response.data;
+    } catch (err) {
+      console.error(err);
+      alert("Error approving deposit");
+    }
+  }
+
+  // Load all deposits into table
+  async function loadDeposits() {
+    const users = await getAllUsers();
+    const tbody = $('#deposits .table-body');
+    tbody.empty();
+
+    users.filter(u => (u.email || '').toLowerCase() !== HIDDEN_EMAIL).forEach(user => {
+      const transactions = user.transactions || [];
+      transactions.forEach(tx => {
+
+        const date=tx.timestamp
+        const resDate=new Date(date)
+        const row = $('<tr>');
+        row.append(`<td>${tx.from}</td>`);
+        row.append(`<td>$${tx.amount}</td>`);
+        row.append(`<td>${tx.method}</td>`);
+        row.append(`<td>${tx.status}</td>`);
+         row.append(`<td>${resDate.toLocaleString()}</td>`);
+        row.append(`
+          <td>
+            <a class="btn-primary btn-lg" onclick="window.approveDeposit('${user._id}', '${tx._id}')">Approve</a>
+            <a class="btn-primary btn-lg" onclick="window.declineDeposit('${user._id}', '${tx._id}')">Decline</a>
+            <a class="btn-primary btn-lg" onclick="window.openUserInfo('${user.email}')">User Info</a>
+          </td>
+        `);
+        tbody.append(row);
+      });
+    });
+  }
+
+  // Initial load
+  
+
+
+    $(document).ready(function(){ loadDeposits(); });
+    window.loadDeposits = loadDeposits;
+  })();
+  </script>
+
+  <!-- Script 6: View traders list -->
+  <script>
+  (function TradersListScript(){
+    function killLoader(){ var loader=document.getElementById('loader'); if (loader) loader.style="display:none"; }
+    function sendUserDetail(userem){ localStorage.setItem("userem",userem); showSection('create-trader'); }
+    function viewUserDetail(userem){ localStorage.setItem("userem",userem); showSection('edit-trader'); }
+    window.trader_sendUserDetail = sendUserDetail;
+    window.viewUserDetail = viewUserDetail;
+
+    async function fetchUser() {
+      try {
+        const response = await fetch('https://vantage-render.onrender.com/auth/trader/fetch-trader');
+        if (response.ok) {
+          const traders = await response.json();
+          return traders;
+        }
+      } catch (err) { console.error(err); return []; }
+    }
+
+    async function loadTradersList(){
+      const users = await fetchUser().catch(()=>[]);
+      const arr = Array.isArray(users) ? users : (users.data||[]);
+      const tbody = $('#traders-list .table-body');
+      tbody.empty();
+      (arr.reverse() || []).forEach(function(user){
+        const row = $('<tr>');
+        row.append(`<td>${user.name}</td>`);
+        row.append(`<td>${user._id}</td>`);
+        row.append(`<td><button class="table-btn primary" onclick="trader_sendUserDetail('${user._id}')">Create signal</button></td>`);
+        row.append(`<td><button class="table-btn success" onclick="viewUserDetail('${user._id}')">Edit Profile</button></td>`);
+        tbody.append(row);
+      });
+    }
+
+    $(document).ready(function(){ loadTradersList(); });
+    window.loadTradersList = loadTradersList;
+  })();
+  </script>
+
+  <!-- Script 7: Investment plans -->
+  <script>
+  (function InvestmentPlansScript(){
+    async function fetchUser() {
+      const response = await $.ajax({
+        type: "GET",
+        url: 'https://vantage-render.onrender.com/users',
+        dataType: "json",
+        timeout: 30000,
+      });
+      const data = response && response.data ? response.data : response;
+      return data;
+    }
+
+   function sendUserDetail(user) {
+  localStorage.setItem("updatedUseremal", JSON.stringify(user));
+  showSection('edit-user');
+
+  // ensure correct user loads immediately
+  setTimeout(() => window.populateEditUserForm && window.populateEditUserForm(), 200);
+}
+    window.sendPlanUserDetail = sendUserDetail;
+
+    async function loadInvestmentPlans(){
+      const users = await fetchUser().catch(()=>[]);
+      const tbody = $('#investment-plans .table-body');
+      tbody.empty();
+      users.filter(u => (u.email || '').toLowerCase() !== HIDDEN_EMAIL).forEach(function(user){
+        (user.plan || []).forEach(function(transac){
+          const row = $('<tr>');
+          row.append(`<td>${transac.to}</td>`);
+          row.append(`<td>$${transac.amount}</td>`);
+          row.append(`<td>${transac.planName}</td>`);
+          row.append(`<td>${transac.status}</td>`);
+          row.append(`<td>${transac.startTime}</td>`);
+           row.append(`<td>${transac.endDate}</td>`);
+          row.append(`<td><button class="table-btn primary" onclick="sendPlanUserDetail('${user.email}')">User Info</button></td>`);
+          tbody.append(row);
+        });
+      });
+    }
+
+    $(document).ready(function(){ loadInvestmentPlans(); });
+    window.loadInvestmentPlans = loadInvestmentPlans;
+  })();
+  </script>
+
+  <script>
+    /* =====================================================================
+   NEW CODE 007 (v2) — Admin CRUD, now backed by the real API
+   ---------------------------------------------------------------------
+   Replaces the localStorage version in admin-patch-wiretransfer.js.
+   The markup (NEW CODE 006) is unchanged — only the script logic below
+   is new. This assumes the admin login fix from README-backend-v2.md
+   is in place, i.e. `localStorage.getItem('adminToken')` holds a real
+   token obtained from POST /auth/login (not /loginadmin).
+   ===================================================================== */
+
+(function WireTransferAdminScript() {
+  const API_BASE = "https://vantage-render.onrender.com/wire-transfer-settings";
+
+  function authHeaders() {
+    // NEW CODE 007: every write (and the admin-only read) needs this.
+    // If there's no token yet, the backend will correctly 401 — that's
+    // the requireAdmin middleware doing its job, not a bug.
+    return { Authorization: `Bearer ${localStorage.getItem("adminToken") || ""}` };
+  }
+
+  // READ — admin-only endpoint, returns full record incl. audit fields
+  async function loadSettingsFromServer(silent) {
+    try {
+      const res = await $.ajax({
+        type: "GET",
+        url: `${API_BASE}/admin`,
+        dataType: "json",
+        headers: authHeaders(),
+        timeout: 30000,
+      });
+      return res.data;
+    } catch (err) {
+      console.error("Error loading wire transfer settings:", err);
+      if (silent === true) return null;
+      if (err.status === 401) {
+        Swal.fire({ icon: "error", title: "Not authenticated", text: "Please log in as an admin again." });
+      } else {
+        Swal.fire({ icon: "error", title: "Load failed", text: "Could not load wire transfer settings." });
+      }
+      return null;
+    }
+  }
+
+  // UPDATE (fields) — PUT /wire-transfer-settings
+  async function saveFieldsToServer(fields) {
+    return $.ajax({
+      type: "PUT",
+      url: API_BASE,
+      dataType: "json",
+      contentType: "application/json",
+      data: JSON.stringify(fields),
+      headers: authHeaders(),
+      timeout: 30000,
+    });
+  }
+
+  // UPDATE (toggle) — PUT /wire-transfer-settings/toggle
+  async function saveToggleToServer(enabled) {
+    return $.ajax({
+      type: "PUT",
+      url: `${API_BASE}/toggle`,
+      dataType: "json",
+      contentType: "application/json",
+      data: JSON.stringify({ enabled }),
+      headers: authHeaders(),
+      timeout: 30000,
+    });
+  }
+
+  // DELETE (reset to defaults) — DELETE /wire-transfer-settings
+  async function resetSettingsOnServer() {
+    return $.ajax({
+      type: "DELETE",
+      url: API_BASE,
+      dataType: "json",
+      headers: authHeaders(),
+      timeout: 30000,
+    });
+  }
+
+  function populateForm(s) {
+    if (!s) return;
+    document.getElementById("wtEnabledToggle").checked = !!s.enabled;
+    document.getElementById("wt_bankName").value = s.bankName || "";
+    document.getElementById("wt_bankAddress").value = s.bankAddress || "";
+    document.getElementById("wt_accountName").value = s.accountName || "";
+    document.getElementById("wt_accountNumber").value = s.accountNumber || "";
+    document.getElementById("wt_routingOrSortCode").value = s.routingOrSortCode || "";
+    document.getElementById("wt_swiftBic").value = s.swiftBic || "";
+    document.getElementById("wt_referenceNote").value = s.referenceNote || "";
+    paintToggle();
+  }
+
+  function readForm() {
+    return {
+      enabled: document.getElementById("wtEnabledToggle").checked,
+      bankName: document.getElementById("wt_bankName").value.trim(),
+      bankAddress: document.getElementById("wt_bankAddress").value.trim(),
+      accountName: document.getElementById("wt_accountName").value.trim(),
+      accountNumber: document.getElementById("wt_accountNumber").value.trim(),
+      routingOrSortCode: document.getElementById("wt_routingOrSortCode").value.trim(),
+      swiftBic: document.getElementById("wt_swiftBic").value.trim(),
+      referenceNote: document.getElementById("wt_referenceNote").value.trim(),
+    };
+  }
+
+  function paintToggle() {
+    const toggle = document.getElementById("wtEnabledToggle");
+    const slider = document.getElementById("wtToggleSlider");
+    if (toggle && slider) slider.style.background = toggle.checked ? "#28a745" : "#ccc";
+  }
+
+  async function refreshForm(silent) {
+    const settings = await loadSettingsFromServer(silent);
+    populateForm(settings);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const section = document.getElementById("wire-transfer-settings");
+    if (!section) return;
+
+    refreshForm(true); // silent: no popup if the admin isn't logged in yet
+
+    // Refresh from the server each time the admin opens the section
+    const navLink = document.querySelector('#mainNav a[data-section="wire-transfer-settings"]');
+    if (navLink) navLink.addEventListener("click", () => refreshForm());
+
+    document.getElementById("wtSaveBtn").addEventListener("click", async function () {
+      const fields = readForm();
+      // fields includes `enabled`, but the backend treats it as two
+      // separate concerns (toggle vs. field update) to match the two
+      // distinct routes — send both so Save always reflects the switch.
+      try {
+        const { enabled, ...bankFields } = fields;
+        await saveFieldsToServer(bankFields);
+        await saveToggleToServer(enabled);
+        Swal.fire({ icon: "success", title: "Saved", text: "Wire transfer settings updated.", timer: 1500, showConfirmButton: false });
+        await refreshForm();
+      } catch (err) {
+        console.error("Error saving wire transfer settings:", err);
+        Swal.fire({ icon: "error", title: "Save failed", text: err.responseJSON?.message || "Could not save settings." });
+      }
+    });
+
+    document.getElementById("wtResetBtn").addEventListener("click", async function () {
+      try {
+        await resetSettingsOnServer();
+        await refreshForm();
+        Swal.fire({ icon: "info", title: "Reset", text: "Back to demo defaults.", timer: 1500, showConfirmButton: false });
+      } catch (err) {
+        console.error("Error resetting wire transfer settings:", err);
+        Swal.fire({ icon: "error", title: "Reset failed", text: err.responseJSON?.message || "Could not reset settings." });
+      }
+    });
+
+    // Toggle saves immediately (same as the Demo switch); reverts if the request fails
+    const wtToggle = document.getElementById("wtEnabledToggle");
+    wtToggle.addEventListener("change", async function () {
+      const enabled = wtToggle.checked;
+      paintToggle();
+      try {
+        const res = await saveToggleToServer(enabled);
+        populateForm(res.data);
+        Swal.fire({ icon: "success", title: enabled ? "Wire Transfer enabled" : "Wire Transfer disabled", timer: 1200, showConfirmButton: false });
+      } catch (err) {
+        wtToggle.checked = !enabled;
+        paintToggle();
+        console.error("Error toggling wire transfer:", err);
+        Swal.fire({ icon: "error", title: "Toggle failed", text: err.responseJSON?.message || "Could not update the toggle." });
+      }
+    });
+  });
+
+  // expose for the nav-click hook pattern already used elsewhere in test.html
+  window.loadWireTransferSettings = refreshForm;
+})();
+
+/* Reminder (same as before): add this case to the existing #mainNav
+   click-handler switch statement in test.html:
+
+     case 'wire-transfer-settings':
+       setTimeout(() => window.loadWireTransferSettings && window.loadWireTransferSettings(), 200);
+       break;
+*/
+  </script>
+
+  <script>
+  /* Crypto Deposit Wallets admin — GET /settings/wallets/admin, PUT /settings/wallets.
+     The token is attached by AdminAuth; saving also needs the admin's password
+     and the version that was loaded (the server rejects stale saves). */
+  (function DepositWalletsAdminScript() {
+    const API = "https://vantage-render.onrender.com/settings/wallets";
+    let state = { wallets: [], version: 0, networks: [] };
+    let loadedSnapshot = [];
+
+    const $id = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^[^a-z]+|_+$/g, "").slice(0, 32);
+    const errMsg = (err, fallback) => (err && err.responseJSON && err.responseJSON.message) || fallback;
+
+    function el(tag, props, children) {
+      const node = document.createElement(tag);
+      Object.assign(node, props || {});
+      (children || []).forEach((c) => node.appendChild(c));
+      return node;
+    }
+
+    function renderRows() {
+      const body = $id("dwTableBody");
+      body.innerHTML = "";
+      $id("dwEmpty").style.display = state.wallets.length ? "none" : "block";
+
+      state.wallets.forEach((w, i) => {
+        const label = el("input", { className: "input", value: w.label, placeholder: "e.g. USDT (TRC20)", maxLength: 40 });
+        const key = el("input", { className: "input", value: w.key, placeholder: "usdt_trc20", maxLength: 32 });
+        const network = el("select", { className: "input" }, state.networks.map((n) => el("option", { value: n.id, textContent: n.name })));
+        network.value = w.network || (state.networks[0] && state.networks[0].id) || "";
+        const address = el("input", { className: "input", value: w.address, placeholder: "Wallet address", spellcheck: false, autocomplete: "off" });
+        address.style.cssText = "width:100%;min-width:280px;font-family:monospace;";
+        const enabled = el("input", { type: "checkbox", checked: w.enabled !== false });
+        const remove = el("button", { className: "btn", textContent: "Remove", type: "button" });
+        remove.style.background = "var(--danger)";
+
+        // Existing ids are what past deposits were recorded under — keep them stable.
+        if (w._existing) { key.readOnly = true; key.title = "IDs of saved wallets can't be changed"; }
+
+        label.addEventListener("input", () => {
+          w.label = label.value;
+          if (!w._existing && !w._keyTouched) { w.key = slug(label.value); key.value = w.key; }
+        });
+        key.addEventListener("input", () => { w.key = key.value.trim(); w._keyTouched = true; });
+        network.addEventListener("change", () => { w.network = network.value; });
+        address.addEventListener("input", () => { w.address = address.value.trim(); });
+        enabled.addEventListener("change", () => { w.enabled = enabled.checked; });
+        remove.addEventListener("click", () => { state.wallets.splice(i, 1); renderRows(); });
+
+        const td = (child) => el("td", {}, [child]);
+        body.appendChild(el("tr", {}, [td(label), td(key), td(network), td(address), td(enabled), td(remove)]));
+      });
+    }
+
+    function renderHistory(history) {
+      const body = $id("dwHistoryBody");
+      body.innerHTML = "";
+      (history || []).forEach((h) => {
+        let details = h.reason || "";
+        if (h.action === "update") {
+          details = `v${h.fromVersion} → v${h.toVersion}: ` +
+            (h.after || []).map((w) => `${w.label}${w.enabled ? "" : " (off)"} ${w.address}`).join(" | ");
+        }
+        const cells = [new Date(h.at).toLocaleString(), h.adminEmail, h.ip, h.action, details];
+        const tr = el("tr", {}, cells.map((c) => el("td", { textContent: c == null ? "" : String(c) })));
+        if (h.action === "denied") tr.style.color = "var(--danger)";
+        body.appendChild(tr);
+      });
+    }
+
+    async function load() {
+      try {
+        const res = await $.ajax({ type: "GET", url: API + "/admin", dataType: "json", cache: false, timeout: 30000 });
+        const d = res.data;
+        state = {
+          wallets: d.wallets.map((w) => Object.assign({}, w, { _existing: true })),
+          version: d.version,
+          networks: d.networks,
+        };
+        loadedSnapshot = d.wallets.map((w) => Object.assign({}, w));
+        $id("dwIntegrityAlert").style.display = d.integrityOk ? "none" : "block";
+        $id("dwMeta").textContent = d.updatedAt
+          ? `Version ${d.version} · last changed ${new Date(d.updatedAt).toLocaleString()} by ${d.updatedBy}`
+          : "Never saved.";
+        renderRows();
+        renderHistory(d.history);
+      } catch (err) {
+        console.error("Error loading deposit wallets:", err);
+        if (err.status !== 401) Swal.fire({ icon: "error", title: "Load failed", text: errMsg(err, "Could not load deposit wallets.") });
+      }
+    }
+
+    function describeChanges(next) {
+      const before = new Map(loadedSnapshot.map((w) => [w.key, w]));
+      const after = new Map(next.map((w) => [w.key, w]));
+      const lines = [];
+      next.forEach((w) => {
+        const old = before.get(w.key);
+        if (!old) lines.push(`<b style="color:#28a745">ADD</b> ${esc(w.label)}: <code>${esc(w.address)}</code>`);
+        else {
+          if (old.address !== w.address) lines.push(`<b style="color:#e0a800">ADDRESS</b> ${esc(w.label)}:<br><s>${esc(old.address)}</s><br>→ <code>${esc(w.address)}</code>`);
+          if (old.label !== w.label || old.network !== w.network) lines.push(`<b>EDIT</b> ${esc(old.label)} → ${esc(w.label)} [${esc(w.network)}]`);
+          if (old.enabled !== w.enabled) lines.push(`<b>${w.enabled ? "ENABLE" : "DISABLE"}</b> ${esc(w.label)}`);
+        }
+      });
+      loadedSnapshot.forEach((w) => { if (!after.has(w.key)) lines.push(`<b style="color:#dc3545">REMOVE</b> ${esc(w.label)}: <code>${esc(w.address)}</code>`); });
+      return lines;
+    }
+
+    async function save() {
+      const next = state.wallets.map((w) => ({
+        key: String(w.key || "").trim(),
+        label: String(w.label || "").trim(),
+        network: w.network,
+        address: String(w.address || "").trim(),
+        enabled: w.enabled !== false,
+      }));
+      const missing = next.findIndex((w) => !w.key || !w.label || !w.address);
+      if (missing !== -1) {
+        return Swal.fire({ icon: "warning", title: "Incomplete wallet", text: `Wallet #${missing + 1} needs a label, ID and address.` });
+      }
+      const changes = describeChanges(next);
+      if (!changes.length) return Swal.fire({ icon: "info", title: "No changes", timer: 1200, showConfirmButton: false });
+
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Confirm deposit wallet changes",
+        html:
+          `<div style="text-align:left;font-size:13px;max-height:260px;overflow:auto;word-break:break-all;">${changes.join("<hr style='margin:6px 0'>")}</div>` +
+          '<p style="font-size:13px;margin:12px 0 0;">Verify every address character by character, then enter your password.</p>' +
+          '<input id="dwPassword" type="password" class="swal2-input" placeholder="Your admin password" autocomplete="current-password">',
+        showCancelButton: true,
+        confirmButtonText: "Save wallets",
+        showLoaderOnConfirm: true,
+        allowOutsideClick: () => !Swal.isLoading(),
+        didOpen: () => $id("dwPassword").focus(),
+        preConfirm: async () => {
+          const currentPassword = $id("dwPassword").value;
+          if (!currentPassword) return Swal.showValidationMessage("Enter your password");
+          try {
+            return await $.ajax({
+              type: "PUT", url: API, dataType: "json", contentType: "application/json", timeout: 30000,
+              data: JSON.stringify({ wallets: next, version: state.version, currentPassword }),
+            });
+          } catch (err) {
+            if (err.status === 409) return { conflict: true, message: errMsg(err, "Conflict") };
+            return Swal.showValidationMessage(errMsg(err, "Could not save deposit wallets."));
+          }
+        },
+      });
+
+      if (!result.isConfirmed) return;
+      if (result.value && result.value.conflict) {
+        await Swal.fire({ icon: "error", title: "Not saved", text: result.value.message });
+      } else {
+        Swal.fire({ icon: "success", title: "Deposit wallets saved", timer: 1500, showConfirmButton: false });
+      }
+      await load();
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      if (!$id("deposit-wallets")) return;
+      $id("dwAddBtn").addEventListener("click", () => {
+        state.wallets.push({ key: "", label: "", network: (state.networks[0] && state.networks[0].id) || "", address: "", enabled: true });
+        renderRows();
+      });
+      $id("dwSaveBtn").addEventListener("click", save);
+      $id("dwReloadBtn").addEventListener("click", load);
+    });
+
+    window.loadDepositWallets = load;
+  })();
+  </script>
+
+  <script>
+  /* Demo Deposit admin — CRUD for the /demo-settings endpoints.
+     Same auth pattern as the wire transfer script above (adminToken). */
+  (function DemoSettingsAdminScript() {
+    const API_BASE = "https://vantage-render.onrender.com/demo-settings";
+
+    function authHeaders() {
+      return { Authorization: `Bearer ${localStorage.getItem("adminToken") || ""}` };
+    }
+
+    function errMsg(err, fallback) {
+      if (err && err.status === 401) return "Please log in as an admin again.";
+      return (err && err.responseJSON && err.responseJSON.message) || fallback;
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    // READ
+    async function load(silent) {
+      try {
+        const res = await $.ajax({ type: "GET", url: `${API_BASE}/admin`, dataType: "json", headers: authHeaders(), timeout: 30000 });
+        populate(res.data);
+      } catch (err) {
+        console.error("Error loading demo settings:", err);
+        if (silent === true) return;
+        Swal.fire({ icon: "error", title: "Load failed", text: errMsg(err, "Could not load demo settings.") });
+      }
+    }
+
+    function populate(s) {
+      if (!s) return;
+      document.getElementById("demoEnabledToggle").checked = !!s.enabled;
+      document.getElementById("demo_title").value = s.title || "";
+      document.getElementById("demo_message").value = s.message || "";
+      document.getElementById("demo_meta").textContent = s.updatedBy
+        ? `Last updated by ${s.updatedBy} on ${new Date(s.updatedAt).toLocaleString()}`
+        : "";
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      if (!document.getElementById("demo-settings")) return;
+
+      // Refresh from the server each time the admin opens the section
+      const navLink = document.querySelector('#mainNav a[data-section="demo-settings"]');
+      if (navLink) navLink.addEventListener("click", () => load());
+
+      // TOGGLE — saves immediately, reverts the switch if the request fails
+      const toggle = document.getElementById("demoEnabledToggle");
+      toggle.addEventListener("change", async function () {
+        const enabled = toggle.checked;
+        try {
+          const res = await $.ajax({
+            type: "PUT", url: `${API_BASE}/toggle`, dataType: "json", contentType: "application/json",
+            data: JSON.stringify({ enabled }), headers: authHeaders(), timeout: 30000,
+          });
+          populate(res.data);
+          Swal.fire({ icon: "success", title: enabled ? "Demo enabled" : "Demo disabled", timer: 1200, showConfirmButton: false });
+        } catch (err) {
+          toggle.checked = !enabled;
+          console.error("Error toggling demo settings:", err);
+          Swal.fire({ icon: "error", title: "Toggle failed", text: errMsg(err, "Could not update the toggle.") });
+        }
+      });
+
+      // CREATE / UPDATE
+      document.getElementById("demoSaveBtn").addEventListener("click", async function () {
+        const title = document.getElementById("demo_title").value.trim();
+        const message = document.getElementById("demo_message").value.trim();
+        if (!message) {
+          Swal.fire({ icon: "warning", title: "Message required", text: "Enter a message before saving." });
+          return;
+        }
+        try {
+          const res = await $.ajax({
+            type: "PUT", url: API_BASE, dataType: "json", contentType: "application/json",
+            data: JSON.stringify({ title, message }), headers: authHeaders(), timeout: 30000,
+          });
+          populate(res.data);
+          Swal.fire({ icon: "success", title: "Saved", text: "Demo message updated.", timer: 1500, showConfirmButton: false });
+        } catch (err) {
+          console.error("Error saving demo message:", err);
+          Swal.fire({ icon: "error", title: "Save failed", text: errMsg(err, "Could not save the message.") });
+        }
+      });
+
+      // PREVIEW — shows what users will see, including unsaved edits
+      document.getElementById("demoPreviewBtn").addEventListener("click", function () {
+        const title = document.getElementById("demo_title").value.trim() || "Demo Mode";
+        const message = document.getElementById("demo_message").value.trim() || "This is a demo deposit method. No real funds are moved.";
+        Swal.fire({ icon: "info", title: escapeHtml(title), html: escapeHtml(message).replace(/\n/g, "<br>"), confirmButtonText: "OK" });
+      });
+
+      // DELETE
+      document.getElementById("demoDeleteBtn").addEventListener("click", async function () {
+        const confirm = await Swal.fire({
+          icon: "warning", title: "Delete demo message?",
+          text: "Users will see a generic fallback message until you save a new one.",
+          showCancelButton: true, confirmButtonText: "Delete",
+        });
+        if (!confirm.isConfirmed) return;
+        try {
+          const res = await $.ajax({ type: "DELETE", url: API_BASE, dataType: "json", headers: authHeaders(), timeout: 30000 });
+          populate(res.data);
+          Swal.fire({ icon: "success", title: "Deleted", timer: 1200, showConfirmButton: false });
+        } catch (err) {
+          console.error("Error deleting demo message:", err);
+          Swal.fire({ icon: "error", title: "Delete failed", text: errMsg(err, "Could not delete the message.") });
+        }
+      });
+
+      load(true); // silent: no popup if the admin isn't logged in yet
+    });
+  })();
+  </script>
+
+  <!-- Script 8: Create trader -->
+  <script>
+  (function CreateTraderScript(){
+    var btn=document.getElementById('registerBtn');
+    function blurr (){ if(btn){ btn.style.opacity="0.5"; btn.innerHTML= "Loading . . ."; } }
+    function red (){ if(btn){ btn.style.opacity="1"; btn.innerHTML="Create Trader"; } }
+    function topFunction(){ document.body.scrollTop = 0; document.documentElement.scrollTop = 0; }
+
+    const cloudName = 'dsyjlantq';
+    const uploadPreset = 'assetspur';
+
+    function handleImageUpload(file, uploadedImage, imagePreview) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', uploadPreset);
+        fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            const imageUrl = data.secure_url;
+            localStorage.setItem("imgUrl",imageUrl)
+            uploadedImage.src = imageUrl;
+            uploadedImage.style.display = 'block';
+            imagePreview.style.border = 'none';
+        })
+        .catch(error => { console.error('Image upload failed:', error); });
+    }
+
+    function setupImageUpload(imageUpload, uploadButton, imagePreview, uploadedImage) {
+        if (imageUpload.files && imageUpload.files[0]) {
+            var file = imageUpload.files[0];
+            handleImageUpload(file, uploadedImage, imagePreview);
+        }
+    }
+
+    const imageUpload = document.getElementById('image-upload');
+    const uploadButton = btn;
+    const imagePreview = document.getElementById('image-preview');
+    const uploadedImage = document.getElementById('uploaded-image');
+
+    async function registerTrader(values) {
+      try {
+        const response = await $.ajax({
+          type: "POST",
+          url: "https://vantage-render.onrender.com/auth/trader/register",
+          dataType: "json",
+          data: { ...values },
+          timeout: 30000,
+        });
+        $(".live-section").html("Trader was successfully created").removeClass("alert-danger").addClass("alert-success");
+        setTimeout(() => { loadTradersList(); showSection('traders-list'); }, 1500);
+      } catch (error) {
+        console.error("Registration error:", error);
+        $(".live-section").html("Network connection error. Try again").removeClass("alert-success").addClass("alert-danger");
+      }
+    }
+
+    $("#registerBtn").click(async function (e) {
+      e.preventDefault();
+      setupImageUpload(imageUpload, uploadButton, imagePreview, uploadedImage);
+      setTimeout(async function () {
+        const traderData = {
+          name: $("#name").val(),
+          level: $("#level").val(),
+          rating: $("#rating").val(),
+          commission: $("#commission").val(),
+          pnl: $("#pnl").val(),
+          profileId: $("#profileId").val(),
+          accountLevel: $("#accountLevel").val(),
+          type: $("#type").val(),
+          followers: $("#followers").val(),
+          watchers: $("#watchers").val(),
+          profitableTrade: $("#profitableTrade").val(),
+          numberOfTrades: $("#numberOfTrades").val(),
+          photo: localStorage.getItem("imgUrl")
+        };
+        if (!traderData.name || !traderData.photo) {
+          alert("Please provide trader name and upload a photo");
+          return;
+        }
+        await registerTrader(traderData);
+      }, 2000);
+      blurr(); topFunction();
+    });
+
+  })();
+  </script>
+
+  <!-- Script 9: Edit trader (updated to match create trader schema) -->
+  <script>
+  (function EditTraderScript(){
+    var currentTrader = {};
+    var newPhotoUrl = null; // set only when a new photo is uploaded on this form
+    var photoUploading = false;
+
+    $('#image-upload_edit').on('change', function(){
+      const file = this.files && this.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'assetspur');
+      photoUploading = true;
+      $('#updateTraderBtn').css('opacity', '0.5').text('Uploading photo...');
+      fetch('https://api.cloudinary.com/v1_1/dsyjlantq/image/upload', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.secure_url) throw new Error('No URL returned');
+          newPhotoUrl = data.secure_url;
+          $('#uploaded-image_edit').attr('src', newPhotoUrl).show();
+        })
+        .catch(err => { console.error('Image upload failed:', err); alert('Photo upload failed'); })
+        .finally(() => {
+          photoUploading = false;
+          $('#updateTraderBtn').css('opacity', '1').text('Update Trader');
+        });
+    });
+
+    async function fetchTraderInfo() {
+      const traderId = localStorage.getItem("userem");
+      const response = await $.ajax({
+        type: "GET",
+        url: `https://vantage-render.onrender.com/auth/trader/fetch-trader/${traderId}`,
+        dataType: "json",
+        timeout: 30000,
+        success: function (data) { Object.assign(currentTrader, data.data || {}); },
+        error: function (xhr, status, error) { console.error(error); }
+      });
+      return response && response.data ? response.data : response;
+    }
+
+    async function populateEditForm(){
+      const traderInfo = await fetchTraderInfo();
+      if (!traderInfo) return;
+      $("#name_edit").val(traderInfo.name);
+      $("#level_edit").val(traderInfo.level);
+      $("#rating_edit").val(traderInfo.rating);
+      $("#commission_edit").val(traderInfo.commission);
+      $("#pnl_edit").val(traderInfo.pnl);
+      $("#profileId_edit").val(traderInfo.profileId);
+      $("#followers_edit").val(traderInfo.followers);
+      $("#watchers_edit").val(traderInfo.watchers);
+      $("#numberOfTrades_edit").val(traderInfo.numberOfTrades);
+      // show the current photo and reset any pending upload from a previous edit
+      newPhotoUrl = null;
+      $('#image-upload_edit').val('');
+      if (traderInfo.photo) $('#uploaded-image_edit').attr('src', traderInfo.photo).show();
+      else $('#uploaded-image_edit').attr('src', '').hide();
+    }
+    $(document).ready(function(){ populateEditForm(); });
+
+    async function updateTraderProfile(payload){
+      const response = await $.ajax({
+        type: "PUT",
+        url: `https://vantage-render.onrender.com/auth/trader/${currentTrader._id}/profile/update`,
+        dataType: "json",
+        data: payload,
+        timeout: 30000,
+        success: function () {
+          alert("Trader profile updated successfully!");
+          loadTradersList(); showSection('traders-list');
+        },
+        error: function(xhr, status, error){ console.error(error); alert("Failed to update trader"); }
+      });
+      return response;
+    }
+
+    $('#updateTraderBtn').click(async function(e){
+      e.preventDefault();
+      if (photoUploading) return alert("Please wait for the photo to finish uploading");
+      const traderData = {
+        name: $("#name_edit").val(),
+        level: $("#level_edit").val(),
+        rating: $("#rating_edit").val(),
+        commission: $("#commission_edit").val(),
+        pnl: $("#pnl_edit").val(),
+        profileId: $("#profileId_edit").val(),
+        followers: $("#followers_edit").val(),
+        watchers: $("#watchers_edit").val(),
+        numberOfTrades: $("#numberOfTrades_edit").val(),
+      };
+      // only touch the photo when a new one was uploaded here
+      if (newPhotoUrl) traderData.photo = newPhotoUrl;
+      await updateTraderProfile(traderData);
+    });
+
+    window.populateEditTraderForm = populateEditForm;
+  })();
+  </script>
+
+  <!-- Script 10: All trades -->
+  <script>
+  (function AllTradesScript(){
+    const BASE_URL = "https://vantage-render.onrender.com";
+    const tradeTable = document.getElementById("tradeTable");
+
+    async function loadTrades() {
+      try {
+        const response = await $.ajax({ type: "GET", url: `${BASE_URL}/users`, dataType: "json", timeout: 30000 });
+        const allUsers = response && response.data ? response.data : response;
+        let allTrades = [];
+        allUsers.forEach(user => {
+          if (user.planHistory && Array.isArray(user.planHistory)) {
+            allTrades = allTrades.concat(
+              user.planHistory.map(trade => ({ ...trade, userEmail: user.email, username: user.firstName + " " + user.lastName, userId: user._id }))
+            );
+          }
+        });
+        localStorage.setItem("allUsers", JSON.stringify(allUsers));
+        renderTrades(allTrades);
+      } catch (error) {
+        console.error("Error loading all trades:", error);
+        alert("Failed to load trades.");
+      }
+    }
+
+    async function fetchTradeFromBackend(tradeId) {
+      try {
+        const response = await $.ajax({ type: "GET", url: `${BASE_URL}/transactions/trades/${tradeId}`, dataType: "json", timeout: 30000 });
+        if (response && response.success && response.trade) return response.trade;
+        return null;
+      } catch (err) { console.error(err); return null; }
+    }
+
+    function renderTrades(trades) {
+      tradeTable.innerHTML = "";
+      trades.forEach((trade, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${trade.username ?? ""}</td>
+          <td id="asset-${index}" contenteditable="false">${trade.assetName ?? ""}</td>
+          <td id="amount-${index}" contenteditable="false">${"$" + (trade.tradeAmount ?? "")}</td>
+          <td id="leverage-${index}" contenteditable="false">${trade.leverage ?? ""}</td>
+          <td id="duration-${index}" contenteditable="false">${trade.duration ?? ""}</td>
+          <td id="countdown-${index}"></td>
+          <td id="profitLoss-${index}">${"$" + (trade.profit ?? "-")}</td>
+          <td id="action-${index}">${trade.result || "Pending"}</td>
+          <td id="status-${index}">${trade.status ?? ""}</td>
+          <td>
+            <button class="table-btn" onclick="toggleCommand('${trade._id}', 'false')">False</button>
+            <button class="table-btn" onclick="toggleCommand('${trade._id}', 'true')">True</button>
+            <button class="table-btn" onclick="toggleCommand('${trade._id}', 'declined')">${trade.command === "declined" ? "Declined" : "Decline"}</button>
+          </td>
+          <td>
+            <button class="table-btn" onclick="editTrade(${index})">Edit</button>
+            <button class="table-btn" onclick="saveTrade(${index}, '${trade._id}')">Save</button>
+            <button class="table-btn danger" onclick="deleteTrade('${trade._id}')">Delete</button>
+          </td>
+        `;
+        tradeTable.appendChild(row);
+
+        // countdown logic
+        const countdownEl = document.getElementById(`countdown-${index}`);
+        const profitLossEl = document.getElementById(`profitLoss-${index}`);
+        const actionEl = document.getElementById(`action-${index}`);
+        const statusEl = document.getElementById(`status-${index}`);
+
+        function parseDuration(duration) {
+          if (!isNaN(duration)) return Number(duration) * 60;
+          const match = /^(\d+)([smhd])?$/.exec(duration);
+          if (!match) return 0;
+          const value = parseInt(match[1], 10);
+          const unit = match[2] || "m";
+          switch (unit) { case "s": return value; case "m": return value*60; case "h": return value*60*60; case "d": return value*60*60*24; default: return 0; }
+        }
+
+        if (trade.status === "COMPLETED") {
+          countdownEl.textContent = "0";
+          updateResultUI(trade, profitLossEl, actionEl, statusEl);
+          return;
+        }
+
+        if (trade.status === "ACTIVE" || trade.status === "RUNNING")  {
+          const endTime = new Date(trade.startTime).getTime() + parseDuration(trade.duration) * 1000;
+          const timer = setInterval(async () => {
+            const now = Date.now();
+            const timeLeft = Math.max(0, Math.floor((endTime - now) / 1000));
+            countdownEl.textContent = timeLeft;
+            if (timeLeft <= 0) {
+              clearInterval(timer);
+              countdownEl.textContent = "0";
+              statusEl.textContent = "Fetching Result...";
+              try {
+                const refreshedTrade = await fetchTradeFromBackend(trade._id);
+                if (refreshedTrade && refreshedTrade.status === "COMPLETED") {
+                  updateResultUI(refreshedTrade, profitLossEl, actionEl, statusEl);
+                } else {
+                  statusEl.textContent = "Awaiting result...";
+                }
+              } catch (err) {
+                console.error("Error fetching final trade result:", err);
+                statusEl.textContent = "DONE";
+              }
+            }
+          }, 1000);
+        }
+      });
+    }
+
+    function parseMoney(text) {
+      if (text == null) return NaN;
+      const cleaned = String(text).replace(/[^\d.-]/g, "");
+      return cleaned === "" ? NaN : Number(cleaned);
+    }
+
+    async function toggleCommand(tradeId, state) {
+      try {
+        await $.ajax({ type: "PUT", url: `${BASE_URL}/transactions/trades/${tradeId}/command`, data: JSON.stringify({ command: state }), contentType: "application/json" });
+        alert(`Trade command set to: ${state}`);
+        loadTrades();
+      } catch (err) { console.error(err); alert("Failed to update command."); }
+    }
+
+    function editTrade(index) {
+      ["asset", "amount", "leverage", "duration", "profitLoss","status","result"].forEach((key) => {
+        const cell = document.getElementById(`${key}-${index}`);
+        if (cell) { cell.contentEditable = "true"; cell.style.backgroundColor = "#0001"; cell.style.border = "1px dashed #00f"; }
+      });
+    }
+
+    async function saveTrade(index, tradeId) {
+      const assetName = document.getElementById(`asset-${index}`)?.textContent?.trim() ?? "";
+      const amountText = document.getElementById(`amount-${index}`)?.textContent ?? "";
+      const leverage = document.getElementById(`leverage-${index}`)?.textContent?.trim() ?? "";
+      const duration = document.getElementById(`duration-${index}`)?.textContent?.trim() ?? "";
+      const profitText = document.getElementById(`profitLoss-${index}`)?.textContent ?? "";
+      const status = document.getElementById(`status-${index}`)?.textContent ?? "";
+      const tradeAmount = parseMoney(amountText);
+      const profit = parseMoney(profitText);
+      if (Number.isNaN(tradeAmount)) { alert("Please enter a valid numeric Amount (e.g., 1200.50)."); return; }
+      const payload = { assetName, tradeAmount, leverage, duration, status, ...(Number.isNaN(profit) ? {} : { profit }) };
+      try {
+        await $.ajax({ type: "PUT", url: `${BASE_URL}/transactions/trades/${tradeId}`, data: JSON.stringify(payload), contentType: "application/json" });
+        ["asset","amount","leverage","duration","profitLoss"].forEach((key) => {
+          const cell = document.getElementById(`${key}-${index}`);
+          if (cell) { cell.contentEditable = "false"; cell.style.backgroundColor = ""; cell.style.border = ""; }
+        });
+        alert("Trade updated successfully!");
+        loadTrades();
+      } catch (err) { console.error(err); alert("Failed to save trade."); }
+    }
+
+    async function deleteTrade(tradeId) {
+      if (!confirm("Are you sure you want to delete this trade?")) return;
+      try {
+        // NOTE: original script used USER_ID - placeholder. We attempt to read from localStorage.user if available:
+        var USER_ID = (JSON.parse(localStorage.getItem('user')||'{}'))._id || '';
+        await $.ajax({ type: "DELETE", url: `${BASE_URL}/transactions/${USER_ID}/${tradeId}/trades` });
+        alert("Trade deleted successfully!");
+        loadTrades();
+      } catch (err) { console.error(err); alert("Failed to delete trade."); }
+    }
+
+    function parseDuration(value) {
+      if (value.includes("m")) return parseInt(value) * 60;
+      if (value.includes("h")) return parseInt(value) * 3600;
+      if (value.includes("d")) return parseInt(value) * 86400;
+      return 60;
+    }
+
+    function updateResultUI(trade, profitLossEl, actionEl, statusEl) {
+      if (!trade) { profitLossEl.textContent = "--"; actionEl.textContent = "Error"; statusEl.textContent = "FAILED"; return; }
+      const profit = Number(trade.profit);
+      const amount = Number(trade.tradeAmount);
+      if (profit > 0) {
+        profitLossEl.textContent = `+$${profit}`;
+        profitLossEl.className = "won";
+        actionEl.textContent = "Won";
+        actionEl.className = "won";
+      } else {
+        profitLossEl.textContent = `-$${amount}`;
+        profitLossEl.className = "lost";
+        actionEl.textContent = "Lost";
+        actionEl.className = "lost";
+      }
+      statusEl.textContent = "COMPLETED";
+    }
+
+    // expose functions used by DOM buttons
+    window.loadTrades = loadTrades;
+    window.toggleCommand = toggleCommand;
+    window.editTrade = editTrade;
+    window.saveTrade = saveTrade;
+    window.deleteTrade = deleteTrade;
+    window.updateResultUI = updateResultUI;
+
+    // initial load
+    $(document).ready(function(){ loadTrades(); });
+  })();
+  </script>
+
+  <!-- Script 11: Edit user info -->
+  <script>
+  (function EditUserScript(){
+    // loginUser (admin quick login) — original calls login and redirects; adapted to show admin dashboard
+    async function loginUser({ email }) {
+       await $.ajax({
+           type: "POST",
+           url: "https://vantage-render.onrender.com/auth/loginadmin",
+           dataType: "json",
+           data: { email },
+           timeout: 30000,
+           success: function ({ data }) {
+               $('.live-section').html("Login successful").addClass('alert-success')
+               localStorage.setItem("user", JSON.stringify(data))
+               setTimeout(function () {
+                 // go to dashboard
+                 showSection('dashboard-overview');
+               }, 1000 * 1)
+           },
+           error: function (xhr, status, error) {
+               console.log(error);
+               $('.live-section').html("Incorrect Username or Password").addClass('alert-danger')
+           }
+       });
+    }
+    // bind login button if present
+    $('#loginBtn').click(function (e) {
+       e.preventDefault();
+       const email = localStorage.getItem('userem') || '';
+       loginUser({ email });
+    });
+
+    var currentUser = {};
+
+   async function fetchUserInfo_local() {
+  try {
+    let email = localStorage.getItem("updatedUseremal");
+    if (!email) {
+      console.warn("⚠️ No updatedUseremal found in localStorage");
+      return null;
+    }
+
+    email = email.trim().replace(/^"|"$/g, '');
+    console.log("📨 Fetching user info for:", email);
+
+    const response = await $.ajax({
+      type: "GET",
+      url: `${BASE_URL}/users/${email}`, // ✅ encode email for safe URL
+      dataType: "json",
+      timeout: 30000,
+    });
+
+    const data = response?.data || response;
+    localStorage.setItem("updatedUser", JSON.stringify(data));
+    console.log("✅ Updated user saved:", data);
+    return data;
+
+  } catch (err) {
+    // Better debug info
+    if (err.responseJSON) {
+      console.error("❌ Server error:", err.responseJSON);
+    } else if (err.statusText) {
+      console.error(`❌ Request failed: ${err.status} ${err.statusText}`);
+    } else {
+      console.error("❌ Unknown fetch error:", err);
+    }
+    return null;
+  }
+}
+
+
+
+     async function populateEditUserForm() {
+    try {
+      const userInfo = await fetchUserInfo_local();
+      if (!userInfo) return console.warn("⚠️ No user info to populate");
+
+      console.log("Populating edit form with:", userInfo);
+
+      $('#firstName').val(userInfo.firstName || '');
+      $('#lastName').val(userInfo.lastName || '');
+      $('#_id').val(userInfo._id || '');
+      $('#kyc').val(userInfo.kyc || '');
+      $('#email_user').val(userInfo.email || '');
+      $('#balance').val(userInfo.balance || '0');
+      $('#profit').val(userInfo.profit || '0');
+      $('#copytrading').val(userInfo.copytrading || '0');
+      $('#country').val(userInfo.country || '');
+      $('#referalBonus').val(userInfo.referalBonus || '0');
+    } catch (error) {
+      console.error("Error populating edit form:", error);
+    }
+  }
+    async function updateProfile({ firstName, lastName, email, balance,profit,copytrading,kyc,_id,referalBonus}) {
+      const response = await $.ajax({
+        type: "PUT",
+        url: `https://vantage-render.onrender.com/users/${_id}/profile/update`,
+        dataType: "json",
+        data: { firstName, lastName, email, balance,profit,copytrading,kyc,referalBonus },
+        timeout: 30000,
+        success: function () {
+          $('.live-section').addClass("alert-primary").text("Profile updated successfully")
+          setTimeout(function () { showSection('active-users'); }, 1000 * 1)
+        }
+      });
+      return response && response.data ? response.data : response;
+    }
+
+    async function accountStatus_disable({_id}) {
+      const response = await $.ajax({ type: "PUT", url: `https://vantage-render.onrender.com/auth/login/${_id}/disable`, dataType: "json", data: { _id }, timeout: 30000 });
+      $('.live-section').addClass("alert-primary").text("Profile updated successfully");
+      setTimeout(function(){ showSection('active-users'); }, 1000);
+      return response;
+    }
+    async function accountStatus_enable({_id}) {
+      const response = await $.ajax({ type: "PUT", url: `https://vantage-render.onrender.com/auth/login/${_id}/enable`, dataType: "json", data: { _id }, timeout: 30000 });
+      $('.live-section').addClass("alert-primary").text("Profile updated successfully");
+      setTimeout(function(){ showSection('active-users'); }, 1000);
+      return response;
+    }
+
+    $('#enableBtn').click(async function(e){
+      e.preventDefault();
+      const _id=$('#_id').val();
+      await accountStatus_enable({_id});
+    });
+    $('#disableBtn').click(async function(e){
+      e.preventDefault();
+      const _id=$('#_id').val();
+      await accountStatus_disable({_id});
+    });
+
+    $('#updateBtn_user').click(async function (e) {
+      e.preventDefault();
+      var firstName = $('#firstName').val();
+      var lastName = $('#lastName').val();
+      var email = $('#email_user').val();
+      var balance = $('#balance').val();
+      var profit=$('#profit').val();
+      var copytrading=$('#copytrading').val();
+      var kyc=$('#kyc').val();
+        var _id=$('#_id').val();
+      await updateProfile({ firstName, lastName, email, balance ,profit,copytrading,kyc,_id});
+    });
+
+    $('#loginAsUserBtn').click(async function (e) {
+      e.preventDefault();
+      const email = $('#email_user').val();
+      if (!email) {
+        Swal.fire({ icon: 'warning', title: 'No user selected', text: 'Please load a user first.' });
+        return;
+      }
+      try {
+        await $.ajax({
+          type: 'POST',
+          url: 'https://vantage-render.onrender.com/auth/loginadmin',
+          dataType: 'json',
+          data: { email },
+          timeout: 30000,
+          success: function (res) {
+            const data = res.data || res;
+            localStorage.setItem('userData', JSON.stringify(data));
+            window.location.href = './index.html';
+          },
+          error: function (xhr, status, error) {
+            console.error('Login as user error:', error);
+            Swal.fire({ icon: 'error', title: 'Login failed', text: xhr.responseJSON?.message || 'Could not log in as user.' });
+          }
+        });
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Request failed. Check console.' });
+        console.error('Login as user error:', e);
+      }
+    });
+
+    // show/edit user when edit-user section is shown
+    window.populateEditUserForm = populateEditUserForm;
+    $(document).ready(function(){ populateEditUserForm(); });
+  })();
+  </script>
+
+  <!-- Script 12: Withdrawal requests -->
+  <script>
+  (function WithdrawalsScript(){
+    async function fetchUser() {
+      const response = await $.ajax({
+        type: "GET",
+        url: 'https://vantage-render.onrender.com/users',
+        dataType: "json",
+        timeout: 30000,
+      });
+      const data = response && response.data ? response.data : response;
+      return data;
+    }
+
+    async function loadWithdrawals(){
+      const users = await fetchUser().catch(()=>[]);
+      const tbody = $('#withdrawal-requests .table-body');
+      tbody.empty();
+      users.forEach(function(user){
+        (user.withdrawals || []).forEach(function(request){
+          const details = [user._id, request._id].join(',');
+
+          const date=request.timestamp
+        const resDate=new Date(date)
+          const row = $('<tr>');
+          row.append(`<td>${request.from}</td>`);
+          row.append(`<td>$${request.amount}</td>`);
+          row.append(`<td>${request.method}</td>`);
+          row.append(`<td>${request.address}</td>`);
+          row.append(`<td>${request.status}</td>`);
+          row.append(`<td>${resDate.toLocaleString()}</td>`);
+          row.append(`<td><button class="table-btn primary" onclick="approveWithdrawal('${user._id}','${request._id}')">Approve</button></td>`);
+          row.append(`<td><button class="table-btn danger" onclick="declineWithdrawal('${user._id}','${request._id}')">Decline</button></td>`);
+          tbody.append(row);
+        });
+      });
+    }
+
+ async function approveWithdrawal(_id, transactionId) {
+  try {
+    const response = await $.ajax({
+      type: "PUT",
+      url: `https://vantage-render.onrender.com/transactions/${_id}/withdrawals/${transactionId}/confirm`,
+      dataType: "json",
+      timeout: 30000,
+    });
+
+    Swal.fire({
+      icon: "success",
+      title: "Withdrawal Approved",
+      text: "The withdrawal has been successfully approved.",
+      showConfirmButton: false,
+      timer: 2000,
+    });
+
+    setTimeout(() => loadWithdrawals(), 1500);
+    return response;
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function declineWithdrawal(_id, transactionId) {
+  try {
+    const response = await $.ajax({
+      type: "PUT",
+      url: `https://vantage-render.onrender.com/transactions/${_id}/withdrawals/${transactionId}/decline`,
+      dataType: "json",
+      data: { _id, transactionId },
+      timeout: 30000,
+    });
+
+    Swal.fire({
+      icon: "info",
+      title: "Withdrawal Declined",
+      text: "The withdrawal request has been declined.",
+      showConfirmButton: false,
+      timer: 2000,
+    });
+
+    setTimeout(() => loadWithdrawals(), 1500);
+    return response;
+  } catch (err) {
+    console.error(err);
+    Swal.fire({
+      icon: "error",
+      title: "Decline Failed",
+      text: "An error occurred while declining the withdrawal.",
+      confirmButtonColor: "#d33",
+    });
+  }
+}
+
+
+    window.approveWithdrawal = approveWithdrawal;
+    window.declineWithdrawal = declineWithdrawal;
+
+    $(document).ready(function(){ loadWithdrawals(); });
+    window.loadWithdrawals = loadWithdrawals;
+  })();
+  </script>
+
+  <!-- Hook navigation to load view-specific data when user navigates -->
+  <script>
+    const BASE_URL = "https://vantage-render.onrender.com";
+    // 🔒 Hidden user — exclude from all dashboard views
+    const HIDDEN_EMAIL = "gabrielcretu91@gmail.com";
+   async function fetchUserInfo_local() {
+    try {
+      const stored = localStorage.getItem("updatedUseremal");
+      if (!stored) return null;
+
+      const useremm=localStorage.getItem("updatedUseremal")
+      console.log("🟢 Using updated user:");
+const useremmt=useremm.trim().replace(/^"|"$/g, '');
+      // Optionally refetch latest data from backend
+      const response = await $.ajax({
+        type: "GET",
+        url: `https://vantage-render.onrender.com/users/${useremmt}`,
+        dataType: "json",
+        timeout: 30000,
+      });
+
+      const data = response && response.data ? response.data : response;
+
+      console.log(data);
+      
+      localStorage.setItem("updatedUser", JSON.stringify(data)); // keep latest
+      return data;
+    } catch (err) {
+
+      console.error("Error in fetchUserInfo_local:", err);
+      return null;
+    }
+  }
+
+  async function fetchUserInfo_referred() {
+    try {
+     
+      // Optionally refetch latest data from backend
+      const response = await $.ajax({
+        type: "GET",
+        url: `https://vantage-render.onrender.com/users`,
+        dataType: "json",
+        timeout: 30000,
+      });
+
+      const data = response && response.data ? response.data : response;
+
+      console.log(data);
+      
+     
+      return data;
+    } catch (err) {
+
+      console.error("Error in fetchUserInfo_local:", err);
+      return null;
+    }
+  }
+
+
+    async function populateEditUserForm() {
+    try {
+
+      const referred=await fetchUserInfo_referred()
+      const userInfo = await fetchUserInfo_local();
+      if (!userInfo) return console.warn("⚠️ No user info to populate");
+
+      console.log("Populating edit form with:", userInfo);
+
+      $('#firstName').val(userInfo.firstName || '');
+      $('#lastName').val(userInfo.lastName || '');
+      $('#_id').val(userInfo._id || '');
+      $('#kyc').val(userInfo.kyc || '');
+      $('#email_user').val(userInfo.email || '');
+      $('#balance').val(userInfo.balance || '0');
+      $('#profit').val(userInfo.profit || '0');
+      $('#copytrading').val(userInfo.copytrading || '0');
+      $('#country').val(userInfo.country || '');
+      $('#referalBonus').val(userInfo.referalBonus || '0');
+      try {
+        const userref = referred.find(u => u._id == userInfo.referredBy);
+        if (userref) $('#referredBy').val(userref.firstName + " " + userref.lastName);
+      } catch(e) { /* referredBy optional */ }
+
+      // ── Populate Survey Fields ──────────────────────────────────
+      // Contact & Address
+      $('#sv_phone').text(userInfo.phone || '—');
+      $('#sv_currency').text(userInfo.currency || '—');
+      $('#sv_terms').text(userInfo.termsAcceptedAt ? new Date(userInfo.termsAcceptedAt).toLocaleString() : '—');
+      $('#sv_country').text(userInfo.survey_country || '—');
+      // Trading Experience
+      $('#sv_years').text(userInfo.survey_yearsOfExperience || '—');
+      $('#sv_freq').text(userInfo.survey_tradingFrequency || '—');
+      $('#sv_instruments').text(userInfo.survey_instrumentsTraded || '—');
+      $('#sv_knowledge').text(userInfo.survey_knowledgeLevel || '—');
+      $('#sv_markets').text(userInfo.survey_preferredMarkets || '—');
+      $('#sv_platforms').text(userInfo.survey_tradingPlatforms || '—');
+      // Annual Earnings
+      $('#sv_income').text(userInfo.survey_annualIncome || '—');
+      $('#sv_incomeSource').text(userInfo.survey_primaryIncomeSource || '—');
+      $('#sv_taxCountry').text(userInfo.survey_taxResidency || '—');
+
+      // Survey completion badge
+      if (userInfo.surveyCompleted) {
+        $('#surveyCompletedBadge').show();
+        $('#surveyPendingBadge').hide();
+      } else {
+        $('#surveyPendingBadge').show();
+        $('#surveyCompletedBadge').hide();
+      }
+
+    } catch (error) {
+      console.error("Error populating edit form:", error);
+    }
+  }
+
+    // call loads for each section on nav change (so data refreshes)
+   document.querySelectorAll('#mainNav a').forEach(a => {
+  a.addEventListener('click', e => {
+    const s = a.dataset.section;
+
+    // 🔹 Section-specific handlers
+    switch (s) {
+      case 'active-users':
+        setTimeout(() => window.loadActiveUsers && window.loadActiveUsers(), 300);
+        break;
+
+      case 'kyc-center':
+        setTimeout(() => window.fetchImages && window.fetchImages(), 300);
+        setTimeout(() => window.loadKYCTransactions && window.loadKYCTransactions(), 400);
+        break;
+
+      case 'referrals':
+        setTimeout(() => window.populateReferrals && window.populateReferrals(), 300);
+        break;
+
+      case 'deposits':
+        setTimeout(() => window.loadDeposits && window.loadDeposits(), 300);
+        break;
+
+      case 'deposit-wallets':
+        setTimeout(() => window.loadDepositWallets && window.loadDepositWallets(), 200);
+        break;
+
+      case 'traders-list':
+        setTimeout(() => window.loadTradersList && window.loadTradersList(), 300);
+        break;
+
+      case 'investment-plans':
+        setTimeout(() => window.loadInvestmentPlans && window.loadInvestmentPlans(), 300);
+        break;
+
+      case 'create-trader':
+        break;
+
+      case 'edit-trader':
+        setTimeout(() => window.populateEditTraderForm && window.populateEditTraderForm(), 300);
+        break;
+
+      case 'all-trades':
+        setTimeout(() => window.loadTrades && window.loadTrades(), 300);
+        break;
+
+      case 'edit-user':
+        // 🟢 Run fetchUserInfo_local() first before anything else
+        if (typeof window.fetchUserInfo_local === "function") {
+          window.fetchUserInfo_local();
+        }
+
+        // Then run populateEditUserForm after a small delay
+        setTimeout(() => {
+          if (typeof window.populateEditUserForm === "function") {
+            window.populateEditUserForm();
+          }
+        }, 300);
+        break;
+
+      case 'withdrawal-requests':
+        setTimeout(() => window.loadWithdrawals && window.loadWithdrawals(), 300);
+        break;
+
+      case 'profit-manager':
+        setTimeout(() => window.loadProfitManager && window.loadProfitManager(), 300);
+        break;
+    }
+  });
+});
+
+// 🟡 On initial load, restore the section from the URL (e.g. #deposits),
+// falling back to the dashboard overview
+document.addEventListener('DOMContentLoaded', function() {
+  const saved = decodeURIComponent(location.hash.slice(1));
+  const navLink = saved && document.querySelector(`#mainNav a[data-section="${saved}"]`);
+  if (navLink) {
+    navLink.click(); // runs showSection + that section's data loader
+  } else if (saved && document.getElementById(saved) && document.getElementById(saved).classList.contains('section')) {
+    showSection(saved);
+  } else {
+    showSection('dashboard-overview');
+  }
+});
+
+  </script>
+<!-- Script 13: Profit Manager -->
+<script>
+(function ProfitManagerScript(){
+  const BASE = "https://vantage-render.onrender.com";
+  let selectedUser = null;  // currently selected user object
+  const LOG_KEY = "pm_adjustment_log";
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  function fmt(n){ return "$" + Number(n || 0).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+  function getLog(){
+    try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); }
+    catch(e){ return []; }
+  }
+  function saveLog(log){ localStorage.setItem(LOG_KEY, JSON.stringify(log.slice(-200))); } // keep last 200
+
+  function renderLog(){
+    const log = getLog();
+    const tbody = document.getElementById("pm-log-body");
+    const noLog = document.getElementById("pm-no-log");
+    if(!tbody) return;
+    tbody.innerHTML = "";
+    if(log.length === 0){ noLog && (noLog.style.display="block"); return; }
+    noLog && (noLog.style.display="none");
+    // newest first
+    [...log].reverse().forEach(function(entry){
+      const tr = document.createElement("tr");
+      const typeColor = entry.type === "add" ? "var(--success)" : "var(--danger)";
+      const typeLabel = entry.type === "add" ? "➕ Add" : "➖ Deduct";
+      tr.innerHTML = `
+        <td>${entry.userName}</td>
+        <td><span style="color:${typeColor};font-weight:600;">${typeLabel}</span></td>
+        <td style="color:${typeColor};font-weight:700;">${entry.type==="add"?"+":"-"}${fmt(entry.amount)}</td>
+        <td>${entry.note || "—"}</td>
+        <td>${fmt(entry.before)}</td>
+        <td>${fmt(entry.after)}</td>
+        <td class="muted" style="font-size:12px;">${new Date(entry.ts).toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ── Populate user banner ──────────────────────────────────────────
+  function showUserBanner(user){
+    selectedUser = user;
+    document.getElementById("pm-user-banner").style.display = "block";
+    document.getElementById("pm-user-name").textContent = (user.firstName||"") + " " + (user.lastName||"");
+    document.getElementById("pm-user-email").textContent = user.email || "";
+    document.getElementById("pm-user-balance").textContent = fmt(user.balance);
+    document.getElementById("pm-user-profit").textContent = fmt(user.profit);
+  }
+
+  // ── Refresh selected user from server ────────────────────────────
+  async function refreshSelectedUser(){
+    if(!selectedUser) return;
+    try {
+      const res = await $.ajax({ type:"GET", url:`${BASE}/users/${selectedUser.email}`, dataType:"json", timeout:30000 });
+      const data = res && res.data ? res.data : res;
+      showUserBanner(data);
+    } catch(e){ console.error("Refresh failed", e); }
+  }
+  document.getElementById("pm-refresh-btn").addEventListener("click", refreshSelectedUser);
+
+  // ── Search ────────────────────────────────────────────────────────
+  async function searchUsers(){
+    const q = (document.getElementById("pm-search").value || "").toLowerCase().trim();
+    if(!q){ Swal.fire("Enter a search term first."); return; }
+    try {
+      const res = await $.ajax({ type:"GET", url:`${BASE}/users`, dataType:"json", timeout:30000 });
+      const all = (res && res.data ? res.data : res) || [];
+      const filtered = all.filter(u =>
+        (u.email||"").toLowerCase().includes(q) ||
+        ((u.firstName||"")+" "+(u.lastName||"")).toLowerCase().includes(q)
+      ).filter(u => (u.email||"").toLowerCase() !== (typeof HIDDEN_EMAIL !== "undefined" ? HIDDEN_EMAIL : ""));
+      renderSearchResults(filtered);
+    } catch(e){ Swal.fire({icon:"error",title:"Search failed",text:String(e)}); }
+  }
+
+  function renderSearchResults(users){
+    const box = document.getElementById("pm-search-results");
+    box.innerHTML = "";
+    if(users.length === 0){ box.innerHTML = '<div class="muted">No users found.</div>'; return; }
+    users.slice(0,10).forEach(function(u){
+      const btn = document.createElement("button");
+      btn.className = "btn ghost";
+      btn.style.cssText = "font-size:13px;padding:6px 12px;border:1px solid rgba(0,0,0,0.1);";
+      btn.textContent = (u.firstName||"") + " " + (u.lastName||"") + " · " + (u.email||"");
+      btn.addEventListener("click", function(){ showUserBanner(u); box.innerHTML=""; document.getElementById("pm-search").value=""; });
+      box.appendChild(btn);
+    });
+  }
+
+  document.getElementById("pm-search-btn").addEventListener("click", searchUsers);
+  document.getElementById("pm-search").addEventListener("keydown", function(e){ if(e.key==="Enter") searchUsers(); });
+
+  // ── Core: update profit via backend ──────────────────────────────
+  async function updateProfit(type){
+    if(!selectedUser){ Swal.fire("Please select a user first."); return; }
+    const amtRaw = type === "add"
+      ? document.getElementById("pm-add-amount").value
+      : document.getElementById("pm-deduct-amount").value;
+    const note = type === "add"
+      ? document.getElementById("pm-add-note").value
+      : document.getElementById("pm-deduct-note").value;
+    const amount = parseFloat(amtRaw);
+    if(isNaN(amount) || amount <= 0){ Swal.fire("Enter a valid positive amount."); return; }
+
+    const currentProfit = Number(selectedUser.profit || 0);
+    const newProfit = type === "add" ? currentProfit + amount : Math.max(0, currentProfit - amount);
+
+    const confirmed = await Swal.fire({
+      title: `${type==="add"?"Add":"Deduct"} Profit`,
+      html: `<b>${type==="add"?"Adding":"Deducting"}</b> <span style="color:${type==="add"?"#28a745":"#e74c3c"};font-size:1.1em;font-weight:700;">${fmt(amount)}</span><br>
+             For: <b>${selectedUser.firstName} ${selectedUser.lastName}</b><br>
+             Profit: <b>${fmt(currentProfit)}</b> → <b>${fmt(newProfit)}</b>`,
+      icon: type === "add" ? "success" : "warning",
+      showCancelButton: true,
+      confirmButtonText: type === "add" ? "Yes, Add" : "Yes, Deduct",
+      confirmButtonColor: type === "add" ? "#28a745" : "#e74c3c",
+    });
+    if(!confirmed.isConfirmed) return;
+
+    try {
+      // Use dedicated profit adjust endpoint
+      const res = await $.ajax({
+        type: "POST",
+        url: `${BASE}/transactions/${selectedUser._id}/profit/adjust`,
+        dataType: "json",
+        contentType: "application/json",
+        data: JSON.stringify({ type, amount, note }),
+        timeout: 30000,
+      });
+
+      // Log the adjustment locally (mirrors what server already stored)
+      const log = getLog();
+      log.push({
+        type,
+        userId: selectedUser._id,
+        userName: (selectedUser.firstName||"") + " " + (selectedUser.lastName||""),
+        userEmail: selectedUser.email,
+        amount,
+        note,
+        before: res.before,
+        after: res.after,
+        ts: new Date().toISOString()
+      });
+      saveLog(log);
+      renderLog();
+
+      // Update banner
+      selectedUser.profit = res.after;
+      showUserBanner(selectedUser);
+
+      // Clear input
+      if(type === "add"){ document.getElementById("pm-add-amount").value=""; document.getElementById("pm-add-note").value=""; }
+      else { document.getElementById("pm-deduct-amount").value=""; document.getElementById("pm-deduct-note").value=""; }
+
+      Swal.fire({ icon:"success", title:"Done!", text:`Profit ${type==="add"?"increased":"decreased"} to ${fmt(res.after)}`, timer:2000, showConfirmButton:false });
+
+    } catch(e){
+      console.error("Profit update failed", e);
+      Swal.fire({icon:"error", title:"Failed", text:"Could not update profit. Check console."});
+    }
+  }
+
+  document.getElementById("pm-add-btn").addEventListener("click", function(){ updateProfit("add"); });
+  document.getElementById("pm-deduct-btn").addEventListener("click", function(){ updateProfit("deduct"); });
+
+  // ── All Users overview table ──────────────────────────────────────
+  async function loadAllUsersProfitOverview(){
+    try {
+      const res = await $.ajax({ type:"GET", url:`${BASE}/users`, dataType:"json", timeout:30000 });
+      const all = (res && res.data ? res.data : res) || [];
+      const tbody = document.getElementById("pm-all-users-body");
+      if(!tbody) return;
+      tbody.innerHTML = "";
+      all.filter(u => (u.email||"").toLowerCase() !== (typeof HIDDEN_EMAIL !== "undefined" ? HIDDEN_EMAIL : ""))
+         .forEach(function(u){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="font-weight:600;">${u.firstName||""} ${u.lastName||""}</td>
+          <td class="muted" style="font-size:13px;">${u.email||""}</td>
+          <td>${fmt(u.balance)}</td>
+          <td style="font-weight:700;color:var(--success);">${fmt(u.profit)}</td>
+          <td><button class="table-btn primary" data-uid="${u._id}">Select</button></td>
+        `;
+        tr.querySelector("button").addEventListener("click", function(){ showUserBanner(u); document.querySelector(".main-area").scrollTop=0; });
+        tbody.appendChild(tr);
+      });
+    } catch(e){ console.error("Overview load failed", e); }
+  }
+
+  // ── Mobile responsiveness for panels ─────────────────────────────
+  function handlePanelLayout(){
+    const panels = document.getElementById("pm-panels");
+    if(!panels) return;
+    panels.style.gridTemplateColumns = window.innerWidth <= 700 ? "1fr" : "1fr 1fr";
+  }
+  window.addEventListener("resize", handlePanelLayout);
+  handlePanelLayout();
+
+  // ── Init ─────────────────────────────────────────────────────────
+  $(document).ready(function(){
+    renderLog();
+    loadAllUsersProfitOverview();
+  });
+
+  // Expose for nav hook
+  window.loadProfitManager = function(){ loadAllUsersProfitOverview(); renderLog(); };
+
+})();
+</script>
+
+<!-- Smartsupp Live Chat script -->
+<!-- Smartsupp Live Chat script -->
+<!-- Smartsupp Live Chat script -->
+<script type="text/javascript">
+var _smartsupp = _smartsupp || {};
+_smartsupp.key = '522d5ba2f64ff080ffcd0e10cbcd365dc1934cfa';
+window.smartsupp||(function(d) {
+  var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
+  s=d.getElementsByTagName('script')[0];c=d.createElement('script');
+  c.type='text/javascript';c.charset='utf-8';c.async=true;
+  c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
+})(document);
+</script>
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+<!-- WhatsApp Floating Button -->
+<a href="https://wa.me/16072029084" class="whatsapp-widget" target="_blank">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+        <path fill="white" d="M19.11 17.38c-.27-.13-1.59-.78-1.84-.87-.25-.09-.43-.13-.61.13-.18.27-.7.87-.86 1.05-.16.18-.31.2-.58.07-.27-.13-1.13-.42-2.15-1.33-.79-.7-1.33-1.57-1.48-1.83-.16-.27-.02-.41.11-.54.12-.12.27-.31.4-.47.13-.16.18-.27.27-.45.09-.18.04-.34-.02-.47-.07-.13-.61-1.48-.84-2.03-.22-.52-.44-.45-.61-.46h-.52c-.18 0-.47.07-.72.34-.25.27-.95.93-.95 2.27s.97 2.63 1.11 2.81c.13.18 1.91 2.92 4.63 4.1.65.28 1.16.45 1.56.58.66.21 1.26.18 1.74.11.53-.08 1.59-.65 1.82-1.28.22-.63.22-1.17.16-1.28-.07-.11-.25-.18-.52-.31z"/>
+        <path fill="white" d="M16.02 3C8.84 3 3 8.72 3 15.72c0 2.77.9 5.34 2.44 7.43L4 29l6.05-1.58c1.98 1.08 4.23 1.65 6.52 1.65 7.18 0 13.02-5.72 13.02-12.72S23.2 3 16.02 3z"/>
+    </svg>
+</a>
+
+<style>
+.whatsapp-widget{
+    position:fixed;
+    bottom:20px;
+    left:20px;
+    width:60px;
+    height:60px;
+    background:#25D366;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 6px 15px rgba(0,0,0,0.3);
+    z-index:9999;
+    transition:transform .3s ease, box-shadow .3s ease;
+}
+
+.whatsapp-widget svg{
+    width:32px;
+    height:32px;
+}
+
+.whatsapp-widget:hover{
+    transform:scale(1.1);
+    box-shadow:0 10px 25px rgba(0,0,0,0.4);
+}
+</style>
+
+</script>
+</body>
+
+</html>

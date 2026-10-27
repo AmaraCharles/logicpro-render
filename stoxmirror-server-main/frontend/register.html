@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- stop phones auto-linking numbers like "1-3 years" / "10,000 - 50,000" as blue phone links -->
+<meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
+<title>IUX Register Replica</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+/* YOUR ORIGINAL CSS — UNCHANGED */
+* {margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+body {background:#0b0f12;color:#fff;}
+.risk-bar {background:#000;color:#9aa4af;font-size:13px;text-align:center;padding:10px 20px;}
+.header {display:flex;justify-content:space-between;align-items:center;padding:25px 50px;}
+.logo {font-size:28px;font-weight:600;color:#18e09b;}
+.lang {font-size:14px;color:#ccc;}
+.wrapper {min-height:calc(100vh - 140px);display:flex;justify-content:center;align-items:center;padding:20px 16px 40px;}
+.card {width:100%;max-width:460px;background:#0f1418;border:1px solid #1f2a30;border-radius:20px;padding:40px;display:none;}
+.card.active {display:block;}
+.card h2 {text-align:center;font-weight:600;margin-bottom:15px;}
+.card p.subtitle {text-align:center;color:#9aa4af;font-size:14px;margin-bottom:30px;}
+label {font-size:14px;color:#9aa4af;}
+select,input {width:100%;margin-top:8px;margin-bottom:20px;padding:14px;background:#11161a;border:1px solid #2a363d;border-radius:10px;color:#fff;font-size:14px;}
+.checkbox {display:flex;align-items:center;margin-bottom:25px;font-size:13px;color:#9aa4af;}
+.checkbox input {width:auto;margin-right:10px;}
+.checkbox span {color:#18e09b;}
+button.primary {width:100%;padding:14px;border-radius:10px;border:none;background:#18e09b;font-weight:600;cursor:pointer;transition:0.3s;}
+button.primary:hover {background:#12c884;}
+.divider {text-align:center;margin:20px 0;color:#666;font-size:14px;}
+.social-btn {width:100%;padding:14px;border-radius:10px;border:1px solid #2a363d;background:transparent;color:#fff;margin-bottom:12px;cursor:pointer;}
+.code-container {display:flex;justify-content:space-between;gap:8px;margin:25px 0;}
+.code-container input {width:100%;max-width:50px;height:50px;margin:0;padding:0;text-align:center;font-size:20px;}
+.resend {text-align:center;font-size:13px;color:#9aa4af;}
+.resend span {color:#18e09b;}
+@media(max-width:600px){
+    .header{padding:16px 20px;}
+    .card{padding:28px 20px;}
+    .risk-bar{font-size:12px;padding:8px 16px;}
+}
+
+/* links: no default blue/underline anywhere on the page */
+a {color:inherit;text-decoration:none;}
+a[x-apple-data-detectors] {color:inherit !important;text-decoration:none !important;font:inherit !important;}
+.checkbox a {color:#18e09b;}
+.checkbox a:hover {text-decoration:underline;}
+
+/* logo */
+.logo img {height:36px;width:auto;display:block;}
+
+/* language switcher (drives Google Translate) */
+.lang {display:flex;align-items:center;gap:6px;}
+.lang select {
+    width:auto;margin:0;padding:6px 10px;
+    background:#11161a;border:1px solid #2a363d;border-radius:8px;
+    color:#ccc;font-size:13px;cursor:pointer;
+}
+#google_translate_element {display:none;}
+/* hide Google's own top banner / tooltips so the page doesn't shift */
+iframe.skiptranslate, .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame {display:none !important;}
+body {top:0 !important;}
+.goog-text-highlight {background:none !important;box-shadow:none !important;}
+
+/* =====================================================================
+   NEW CODE 013 — styles for the progress indicator + new question types
+   ===================================================================== */
+.step-progress {
+    display:flex;
+    justify-content:center;
+    gap:6px;
+    margin-bottom:28px;
+}
+.step-dot {
+    width:28px;
+    height:4px;
+    border-radius:2px;
+    background:#2a363d;
+    transition:background 0.25s ease;
+}
+.step-dot.done { background:#18e09b; }
+.step-dot.current { background:#18e09b; opacity:0.5; }
+
+.back-link {
+    display:inline-block;
+    color:#9aa4af;
+    font-size:13px;
+    margin-bottom:18px;
+    cursor:pointer;
+}
+.back-link:hover { color:#18e09b; }
+
+.option-grid {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:20px;
+}
+.option-card {
+    border:1px solid #2a363d;
+    border-radius:10px;
+    padding:14px;
+    font-size:13px;
+    color:#ccc;
+    cursor:pointer;
+    text-align:center;
+    transition:all 0.2s ease;
+    user-select:none;
+}
+.option-card:hover { border-color:#18e09b; }
+.option-card.selected {
+    border-color:#18e09b;
+    background:rgba(24,224,155,0.08);
+    color:#18e09b;
+    font-weight:600;
+}
+.option-card .emoji { display:block; font-size:20px; margin-bottom:6px; }
+
+.radio-list { margin-bottom:20px; }
+.radio-row {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 14px;
+    border:1px solid #2a363d;
+    border-radius:10px;
+    margin-bottom:8px;
+    cursor:pointer;
+    font-size:13px;
+    color:#ccc;
+    transition:all 0.2s ease;
+}
+.radio-row:hover { border-color:#18e09b; }
+.radio-row.selected { border-color:#18e09b; background:rgba(24,224,155,0.08); color:#fff; }
+.radio-row input { width:auto; margin:0; }
+</style>
+</head>
+
+<body>
+
+<div class="risk-bar">
+CFDs are complex instruments and come with a high risk of losing money rapidly due to leverage.
+</div>
+
+<div class="header">
+    <div class="logo"><img src="./logo.png" alt="Logo"></div>
+    <div class="lang">
+        <span>🌐</span>
+        <select id="langSelect" class="notranslate" onchange="translatePage(this.value)" aria-label="Language">
+            <option value="en">EN</option>
+            <option value="fr">FR</option>
+            <option value="es">ES</option>
+            <option value="de">DE</option>
+            <option value="pt">PT</option>
+            <option value="it">IT</option>
+            <option value="nl">NL</option>
+            <option value="ru">RU</option>
+            <option value="tr">TR</option>
+            <option value="ar">AR</option>
+            <option value="hi">HI</option>
+            <option value="zh-CN">ZH</option>
+            <option value="ja">JA</option>
+            <option value="ko">KO</option>
+        </select>
+    </div>
+    <div id="google_translate_element"></div>
+</div>
+
+<div class="wrapper">
+
+<!-- PAGE 1 -->
+<div class="card active" id="page1">
+    <h2>Select Your Country of Residence</h2>
+    <p class="subtitle">It must be a country where you have a permanent residence permit.</p>
+
+    <label>Country</label>
+    <select id="country" class="notranslate">
+    <option value="">Select your country</option>
+    <option>Afghanistan</option>
+    <option>Albania</option>
+    <option>Algeria</option>
+    <option>Andorra</option>
+    <option>Angola</option>
+    <option>Antigua and Barbuda</option>
+    <option>Argentina</option>
+    <option>Armenia</option>
+    <option>Australia</option>
+    <option>Austria</option>
+    <option>Azerbaijan</option>
+    <option>Bahamas</option>
+    <option>Bahrain</option>
+    <option>Bangladesh</option>
+    <option>Barbados</option>
+    <option>Belarus</option>
+    <option>Belgium</option>
+    <option>Belize</option>
+    <option>Benin</option>
+    <option>Bhutan</option>
+    <option>Bolivia</option>
+    <option>Bosnia and Herzegovina</option>
+    <option>Botswana</option>
+    <option>Brazil</option>
+    <option>Brunei</option>
+    <option>Bulgaria</option>
+    <option>Burkina Faso</option>
+    <option>Burundi</option>
+    <option>Cabo Verde</option>
+    <option>Cambodia</option>
+    <option>Cameroon</option>
+    <option>Canada</option>
+    <option>Central African Republic</option>
+    <option>Chad</option>
+    <option>Chile</option>
+    <option>China</option>
+    <option>Colombia</option>
+    <option>Comoros</option>
+    <option>Congo (Congo-Brazzaville)</option>
+    <option>Costa Rica</option>
+    <option>Croatia</option>
+    <option>Cuba</option>
+    <option>Cyprus</option>
+    <option>Czechia (Czech Republic)</option>
+    <option>Denmark</option>
+    <option>Djibouti</option>
+    <option>Dominica</option>
+    <option>Dominican Republic</option>
+    <option>Ecuador</option>
+    <option>Egypt</option>
+    <option>El Salvador</option>
+    <option>Equatorial Guinea</option>
+    <option>Eritrea</option>
+    <option>Estonia</option>
+    <option>Eswatini</option>
+    <option>Ethiopia</option>
+    <option>Fiji</option>
+    <option>Finland</option>
+    <option>France</option>
+    <option>Gabon</option>
+    <option>Gambia</option>
+    <option>Georgia</option>
+    <option>Germany</option>
+    <option>Ghana</option>
+    <option>Greece</option>
+    <option>Grenada</option>
+    <option>Guatemala</option>
+    <option>Guinea</option>
+    <option>Guinea-Bissau</option>
+    <option>Guyana</option>
+    <option>Haiti</option>
+    <option>Honduras</option>
+    <option>Hungary</option>
+    <option>Iceland</option>
+    <option>India</option>
+    <option>Indonesia</option>
+    <option>Iran</option>
+    <option>Iraq</option>
+    <option>Ireland</option>
+    <option>Israel</option>
+    <option>Italy</option>
+    <option>Jamaica</option>
+    <option>Japan</option>
+    <option>Jordan</option>
+    <option>Kazakhstan</option>
+    <option>Kenya</option>
+    <option>Kiribati</option>
+    <option>Kuwait</option>
+    <option>Kyrgyzstan</option>
+    <option>Laos</option>
+    <option>Latvia</option>
+    <option>Lebanon</option>
+    <option>Lesotho</option>
+    <option>Liberia</option>
+    <option>Libya</option>
+    <option>Liechtenstein</option>
+    <option>Lithuania</option>
+    <option>Luxembourg</option>
+    <option>Madagascar</option>
+    <option>Malawi</option>
+    <option>Malaysia</option>
+    <option>Maldives</option>
+    <option>Mali</option>
+    <option>Malta</option>
+    <option>Marshall Islands</option>
+    <option>Mauritania</option>
+    <option>Mauritius</option>
+    <option>Mexico</option>
+    <option>Micronesia</option>
+    <option>Moldova</option>
+    <option>Monaco</option>
+    <option>Mongolia</option>
+    <option>Montenegro</option>
+    <option>Morocco</option>
+    <option>Mozambique</option>
+    <option>Myanmar</option>
+    <option>Namibia</option>
+    <option>Nauru</option>
+    <option>Nepal</option>
+    <option>Netherlands</option>
+    <option>New Zealand</option>
+    <option>Nicaragua</option>
+    <option>Niger</option>
+    <option>Nigeria</option>
+    <option>North Korea</option>
+    <option>North Macedonia</option>
+    <option>Norway</option>
+    <option>Oman</option>
+    <option>Pakistan</option>
+    <option>Palau</option>
+    <option>Panama</option>
+    <option>Papua New Guinea</option>
+    <option>Paraguay</option>
+    <option>Peru</option>
+    <option>Philippines</option>
+    <option>Poland</option>
+    <option>Portugal</option>
+    <option>Qatar</option>
+    <option>Romania</option>
+    <option>Russia</option>
+    <option>Rwanda</option>
+    <option>Saint Kitts and Nevis</option>
+    <option>Saint Lucia</option>
+    <option>Saint Vincent and the Grenadines</option>
+    <option>Samoa</option>
+    <option>San Marino</option>
+    <option>Sao Tome and Principe</option>
+    <option>Saudi Arabia</option>
+    <option>Senegal</option>
+    <option>Serbia</option>
+    <option>Seychelles</option>
+    <option>Sierra Leone</option>
+    <option>Singapore</option>
+    <option>Slovakia</option>
+    <option>Slovenia</option>
+    <option>Solomon Islands</option>
+    <option>Somalia</option>
+    <option>South Africa</option>
+    <option>South Korea</option>
+    <option>South Sudan</option>
+    <option>Spain</option>
+    <option>Sri Lanka</option>
+    <option>Sudan</option>
+    <option>Suriname</option>
+    <option>Sweden</option>
+    <option>Switzerland</option>
+    <option>Syria</option>
+    <option>Taiwan</option>
+    <option>Tajikistan</option>
+    <option>Tanzania</option>
+    <option>Thailand</option>
+    <option>Timor-Leste</option>
+    <option>Togo</option>
+    <option>Tonga</option>
+    <option>Trinidad and Tobago</option>
+    <option>Tunisia</option>
+    <option>Turkey</option>
+    <option>Turkmenistan</option>
+    <option>Tuvalu</option>
+    <option>Uganda</option>
+    <option>Ukraine</option>
+    <option>United Arab Emirates</option>
+    <option>United Kingdom</option>
+    <option>United States</option>
+    <option>Uruguay</option>
+    <option>Uzbekistan</option>
+    <option>Vanuatu</option>
+    <option>Vatican City</option>
+    <option>Venezuela</option>
+    <option>Vietnam</option>
+    <option>Yemen</option>
+    <option>Zambia</option>
+    <option>Zimbabwe</option>
+</select>
+
+    <div class="checkbox">
+        <input type="checkbox" id="agree">
+        <div>You agree to the VANTAGESTONK <a href="/terms">Terms and Policies</a>.</div>
+    </div>
+
+    <button class="primary" onclick="continueCountry()">Continue</button>
+</div>
+
+<!-- PAGE 2 -->
+<div class="card" id="page2">
+  <h2>Enter Your Details</h2>
+
+<label>First Name</label>
+<input type="text" id="firstName" placeholder="John">
+
+<label>Last Name</label>
+<input type="text" id="lastName" placeholder="Doe">
+
+<label>Phone Number</label>
+<input type="text" id="phone" placeholder="+234...">
+
+<label>Email</label>
+<input type="email" id="email" placeholder="example@email.com">
+
+<label>Account Type</label>
+<div class="account-type-choice" style="display:flex;gap:10px;margin-bottom:12px;">
+  <label class="acct-opt" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px;border:1px solid #2a3550;border-radius:8px;cursor:pointer;">
+    <input type="radio" name="accountType" value="individual" checked> Individual
+  </label>
+  <label class="acct-opt" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px;border:1px solid #2a3550;border-radius:8px;cursor:pointer;">
+    <input type="radio" name="accountType" value="business"> Business
+  </label>
+</div>
+
+    <button class="primary" onclick="continueEmail()">Continue</button>
+</div>
+
+
+<!-- =====================================================================
+     NEW CODE 014 — Currency page (inserted between personal details
+     and the trading questionnaire)
+     ===================================================================== -->
+<div class="card" id="pageCurrency">
+    <div class="step-progress">
+        <div class="step-dot done"></div><div class="step-dot done"></div>
+        <div class="step-dot current"></div><div class="step-dot"></div>
+        <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+    </div>
+    <span class="back-link" onclick="nextPage(2)">← Back</span>
+    <h2>Base Account Currency</h2>
+    <p class="subtitle">Choose the currency your account balance and trades will be denominated in.</p>
+
+    <label>Currency</label>
+    <select id="currency">
+        <option value="">Select your currency</option>
+        <!-- NEW CODE 014: ISO 4217 currency codes, broad world coverage -->
+        <option value="USD">USD — US Dollar</option>
+        <option value="EUR">EUR — Euro</option>
+        <option value="GBP">GBP — British Pound</option>
+        <option value="JPY">JPY — Japanese Yen</option>
+        <option value="CHF">CHF — Swiss Franc</option>
+        <option value="CAD">CAD — Canadian Dollar</option>
+        <option value="AUD">AUD — Australian Dollar</option>
+        <option value="NZD">NZD — New Zealand Dollar</option>
+        <option value="CNY">CNY — Chinese Yuan</option>
+        <option value="HKD">HKD — Hong Kong Dollar</option>
+        <option value="SGD">SGD — Singapore Dollar</option>
+        <option value="INR">INR — Indian Rupee</option>
+        <option value="IDR">IDR — Indonesian Rupiah</option>
+        <option value="MYR">MYR — Malaysian Ringgit</option>
+        <option value="PHP">PHP — Philippine Peso</option>
+        <option value="THB">THB — Thai Baht</option>
+        <option value="VND">VND — Vietnamese Dong</option>
+        <option value="KRW">KRW — South Korean Won</option>
+        <option value="TWD">TWD — New Taiwan Dollar</option>
+        <option value="PKR">PKR — Pakistani Rupee</option>
+        <option value="BDT">BDT — Bangladeshi Taka</option>
+        <option value="LKR">LKR — Sri Lankan Rupee</option>
+        <option value="NPR">NPR — Nepalese Rupee</option>
+        <option value="AED">AED — UAE Dirham</option>
+        <option value="SAR">SAR — Saudi Riyal</option>
+        <option value="QAR">QAR — Qatari Riyal</option>
+        <option value="KWD">KWD — Kuwaiti Dinar</option>
+        <option value="BHD">BHD — Bahraini Dinar</option>
+        <option value="OMR">OMR — Omani Rial</option>
+        <option value="JOD">JOD — Jordanian Dinar</option>
+        <option value="ILS">ILS — Israeli New Shekel</option>
+        <option value="TRY">TRY — Turkish Lira</option>
+        <option value="EGP">EGP — Egyptian Pound</option>
+        <option value="ZAR">ZAR — South African Rand</option>
+        <option value="NGN">NGN — Nigerian Naira</option>
+        <option value="GHS">GHS — Ghanaian Cedi</option>
+        <option value="KES">KES — Kenyan Shilling</option>
+        <option value="UGX">UGX — Ugandan Shilling</option>
+        <option value="TZS">TZS — Tanzanian Shilling</option>
+        <option value="ETB">ETB — Ethiopian Birr</option>
+        <option value="MAD">MAD — Moroccan Dirham</option>
+        <option value="DZD">DZD — Algerian Dinar</option>
+        <option value="TND">TND — Tunisian Dinar</option>
+        <option value="XOF">XOF — West African CFA Franc</option>
+        <option value="XAF">XAF — Central African CFA Franc</option>
+        <option value="RUB">RUB — Russian Ruble</option>
+        <option value="UAH">UAH — Ukrainian Hryvnia</option>
+        <option value="PLN">PLN — Polish Zloty</option>
+        <option value="CZK">CZK — Czech Koruna</option>
+        <option value="HUF">HUF — Hungarian Forint</option>
+        <option value="RON">RON — Romanian Leu</option>
+        <option value="BGN">BGN — Bulgarian Lev</option>
+        <option value="HRK">HRK — Croatian Kuna</option>
+        <option value="SEK">SEK — Swedish Krona</option>
+        <option value="NOK">NOK — Norwegian Krone</option>
+        <option value="DKK">DKK — Danish Krone</option>
+        <option value="ISK">ISK — Icelandic Krona</option>
+        <option value="RSD">RSD — Serbian Dinar</option>
+        <option value="GEL">GEL — Georgian Lari</option>
+        <option value="AMD">AMD — Armenian Dram</option>
+        <option value="AZN">AZN — Azerbaijani Manat</option>
+        <option value="KZT">KZT — Kazakhstani Tenge</option>
+        <option value="UZS">UZS — Uzbekistani Som</option>
+        <option value="MXN">MXN — Mexican Peso</option>
+        <option value="BRL">BRL — Brazilian Real</option>
+        <option value="ARS">ARS — Argentine Peso</option>
+        <option value="CLP">CLP — Chilean Peso</option>
+        <option value="COP">COP — Colombian Peso</option>
+        <option value="PEN">PEN — Peruvian Sol</option>
+        <option value="UYU">UYU — Uruguayan Peso</option>
+        <option value="BOB">BOB — Bolivian Boliviano</option>
+        <option value="PYG">PYG — Paraguayan Guarani</option>
+        <option value="VES">VES — Venezuelan Bolivar</option>
+        <option value="DOP">DOP — Dominican Peso</option>
+        <option value="JMD">JMD — Jamaican Dollar</option>
+        <option value="TTD">TTD — Trinidad & Tobago Dollar</option>
+        <option value="BBD">BBD — Barbadian Dollar</option>
+        <option value="BSD">BSD — Bahamian Dollar</option>
+        <option value="BZD">BZD — Belize Dollar</option>
+        <option value="GTQ">GTQ — Guatemalan Quetzal</option>
+        <option value="HNL">HNL — Honduran Lempira</option>
+        <option value="NIO">NIO — Nicaraguan Cordoba</option>
+        <option value="CRC">CRC — Costa Rican Colon</option>
+        <option value="PAB">PAB — Panamanian Balboa</option>
+        <option value="FJD">FJD — Fijian Dollar</option>
+        <option value="PGK">PGK — Papua New Guinean Kina</option>
+        <option value="WST">WST — Samoan Tala</option>
+        <option value="TOP">TOP — Tongan Pa'anga</option>
+        <option value="XPF">XPF — CFP Franc</option>
+        <option value="MMK">MMK — Myanmar Kyat</option>
+        <option value="KHR">KHR — Cambodian Riel</option>
+        <option value="LAK">LAK — Lao Kip</option>
+        <option value="MNT">MNT — Mongolian Tugrik</option>
+        <option value="BND">BND — Brunei Dollar</option>
+        <option value="MVR">MVR — Maldivian Rufiyaa</option>
+        <option value="BTN">BTN — Bhutanese Ngultrum</option>
+        <option value="AFN">AFN — Afghan Afghani</option>
+        <option value="IQD">IQD — Iraqi Dinar</option>
+        <option value="IRR">IRR — Iranian Rial</option>
+        <option value="LBP">LBP — Lebanese Pound</option>
+        <option value="SYP">SYP — Syrian Pound</option>
+        <option value="YER">YER — Yemeni Rial</option>
+        <option value="LYD">LYD — Libyan Dinar</option>
+        <option value="SDG">SDG — Sudanese Pound</option>
+        <option value="SOS">SOS — Somali Shilling</option>
+        <option value="ZMW">ZMW — Zambian Kwacha</option>
+        <option value="ZWL">ZWL — Zimbabwean Dollar</option>
+        <option value="MWK">MWK — Malawian Kwacha</option>
+        <option value="MZN">MZN — Mozambican Metical</option>
+        <option value="AOA">AOA — Angolan Kwanza</option>
+        <option value="BWP">BWP — Botswana Pula</option>
+        <option value="NAD">NAD — Namibian Dollar</option>
+        <option value="SZL">SZL — Eswatini Lilangeni</option>
+        <option value="LSL">LSL — Lesotho Loti</option>
+        <option value="MGA">MGA — Malagasy Ariary</option>
+        <option value="MUR">MUR — Mauritian Rupee</option>
+        <option value="SCR">SCR — Seychellois Rupee</option>
+        <option value="RWF">RWF — Rwandan Franc</option>
+        <option value="BIF">BIF — Burundian Franc</option>
+        <option value="CDF">CDF — Congolese Franc</option>
+        <option value="GNF">GNF — Guinean Franc</option>
+        <option value="SLL">SLL — Sierra Leonean Leone</option>
+        <option value="LRD">LRD — Liberian Dollar</option>
+        <option value="GMD">GMD — Gambian Dalasi</option>
+        <option value="CVE">CVE — Cape Verdean Escudo</option>
+        <option value="STN">STN — Sao Tome & Principe Dobra</option>
+        <option value="MRU">MRU — Mauritanian Ouguiya</option>
+        <option value="DJF">DJF — Djiboutian Franc</option>
+        <option value="ERN">ERN — Eritrean Nakfa</option>
+        <option value="KGS">KGS — Kyrgyzstani Som</option>
+        <option value="TJS">TJS — Tajikistani Somoni</option>
+        <option value="TMT">TMT — Turkmenistani Manat</option>
+        <option value="BYN">BYN — Belarusian Ruble</option>
+        <option value="MDL">MDL — Moldovan Leu</option>
+        <option value="ALL">ALL — Albanian Lek</option>
+        <option value="MKD">MKD — Macedonian Denar</option>
+        <option value="BAM">BAM — Bosnia-Herzegovina Mark</option>
+        <option value="XCD">XCD — East Caribbean Dollar</option>
+    </select>
+
+    <button class="primary" onclick="continueCurrency()">Continue</button>
+</div>
+
+
+<!-- =====================================================================
+     NEW CODE 015 — Trading knowledge / experience page
+     Fields map directly to the admin panel's existing survey_* keys
+     (test.html already has sv_years / sv_knowledge / sv_freq inputs
+     waiting for this data).
+     ===================================================================== -->
+<div class="card" id="pageTradingExperience">
+    <div class="step-progress">
+        <div class="step-dot done"></div><div class="step-dot done"></div>
+        <div class="step-dot done"></div><div class="step-dot current"></div>
+        <div class="step-dot"></div><div class="step-dot"></div><div class="step-dot"></div>
+    </div>
+    <span class="back-link" onclick="nextPage('Currency')">← Back</span>
+    <h2>Your Trading Experience</h2>
+    <p class="subtitle">This helps us tailor the platform and risk disclosures to your experience level.</p>
+
+    <label>Years of trading experience</label>
+    <div class="radio-list" id="yearsOptions">
+        <div class="radio-row" data-value="None — I'm new to trading">No experience — I'm new to trading</div>
+        <div class="radio-row" data-value="Less than 1 year">Less than 1 year</div>
+        <div class="radio-row" data-value="1-3 years">1–3 years</div>
+        <div class="radio-row" data-value="3-5 years">3–5 years</div>
+        <div class="radio-row" data-value="5+ years">5+ years</div>
+    </div>
+
+    <label>How would you rate your trading knowledge?</label>
+    <div class="radio-list" id="knowledgeOptions">
+        <div class="radio-row" data-value="Beginner">Beginner — learning the basics</div>
+        <div class="radio-row" data-value="Intermediate">Intermediate — comfortable with charts & orders</div>
+        <div class="radio-row" data-value="Advanced">Advanced — familiar with leverage, derivatives</div>
+        <div class="radio-row" data-value="Professional">Professional / institutional background</div>
+    </div>
+
+    <label>How often do you plan to trade?</label>
+    <div class="radio-list" id="freqOptions">
+        <div class="radio-row" data-value="Daily">Daily</div>
+        <div class="radio-row" data-value="A few times a week">A few times a week</div>
+        <div class="radio-row" data-value="A few times a month">A few times a month</div>
+        <div class="radio-row" data-value="Rarely / long-term holder">Rarely / long-term holder</div>
+    </div>
+
+    <button class="primary" onclick="continueTradingExperience()">Continue</button>
+</div>
+
+
+<!-- =====================================================================
+     NEW CODE 016 — Preferred markets / instruments page
+     Maps to survey_preferredMarkets + survey_instrumentsTraded
+     ===================================================================== -->
+<div class="card" id="pageMarkets">
+    <div class="step-progress">
+        <div class="step-dot done"></div><div class="step-dot done"></div>
+        <div class="step-dot done"></div><div class="step-dot done"></div>
+        <div class="step-dot current"></div><div class="step-dot"></div><div class="step-dot"></div>
+    </div>
+    <span class="back-link" onclick="nextPage('TradingExperience')">← Back</span>
+    <h2>What Do You Like to Trade?</h2>
+    <p class="subtitle">Select all markets you're interested in. You can change this later.</p>
+
+    <div class="option-grid" id="marketsGrid">
+        <div class="option-card" data-value="Forex"><span class="emoji">💱</span>Forex</div>
+        <div class="option-card" data-value="Stocks"><span class="emoji">📈</span>Stocks</div>
+        <div class="option-card" data-value="Crypto"><span class="emoji">₿</span>Crypto</div>
+        <div class="option-card" data-value="Commodities"><span class="emoji">🛢️</span>Commodities</div>
+        <div class="option-card" data-value="Indices"><span class="emoji">📊</span>Indices</div>
+        <div class="option-card" data-value="Options"><span class="emoji">🧾</span>Options</div>
+    </div>
+
+    <label>Which trading platforms have you used before?</label>
+    <input type="text" id="platformsUsed" placeholder="e.g. MetaTrader 4, TradingView — or &quot;None&quot;">
+
+    <button class="primary" onclick="continueMarkets()">Continue</button>
+</div>
+
+
+<!-- =====================================================================
+     NEW CODE 017 — Financial profile page
+     Maps to survey_annualIncome / survey_primaryIncomeSource /
+     survey_taxResidency — standard broker "appropriateness" questions.
+     ===================================================================== -->
+<div class="card" id="pageFinancialProfile">
+    <div class="step-progress">
+        <div class="step-dot done"></div><div class="step-dot done"></div>
+        <div class="step-dot done"></div><div class="step-dot done"></div>
+        <div class="step-dot done"></div><div class="step-dot current"></div><div class="step-dot"></div>
+    </div>
+    <span class="back-link" onclick="nextPage('Markets')">← Back</span>
+    <h2>Financial Profile</h2>
+    <p class="subtitle">Standard questions used to assess the suitability of trading for your situation.</p>
+
+    <label>Annual income (approximate, in your selected currency)</label>
+    <select id="annualIncome">
+        <option value="">Select a range</option>
+        <option value="250,000 - 500,000">250,000 – 500,000</option>
+        <option value="500,000 - 1,000,000">500,000 – 1,000,000</option>
+        <option value="1,000,000 - 5,000,000">1,000,000 – 5,00,000</option>
+        <option value="10,000,000+">10,000,000+</option>
+    </select>
+
+    <label>Primary source of income</label>
+    <select id="primaryIncomeSource">
+        <option value="">Select one</option>
+        <option value="Employment / salary">Employment / salary</option>
+        <option value="Self-employed / business owner">Self-employed / business owner</option>
+        <option value="Investments / savings">Investments / savings</option>
+        <option value="Inheritance">Inheritance</option>
+        <option value="Pension / retirement">Pension / retirement</option>
+        <option value="Other">Other</option>
+    </select>
+
+    <label>Country of tax residency</label>
+    <input type="text" id="taxResidency" placeholder="Usually the same as your country of residence">
+
+    <button class="primary" onclick="continueFinancialProfile()">Continue</button>
+</div>
+
+
+<!-- PAGE 3 (password) — unchanged, just now reached after the questionnaire -->
+<div class="card" id="page3">
+    <h2>Create Password</h2>
+
+    <label>Password</label>
+    <input type="password" id="password">
+
+    <label>Confirm Password</label>
+    <input type="password" id="confirmPassword">
+
+    <label>Referral Code (Optional)</label>
+    <input type="text" id="referralCode">
+
+    <button class="primary" id="registerBtn" onclick="submitRegister()">Register</button>
+</div>
+
+<!-- PAGE 4 -->
+<div class="card" id="page4">
+    <h2>Verification Required</h2>
+    <p class="subtitle">
+        A verification code has been sent to<br>
+        <span style="color:#18e09b;" id="displayEmail"></span>
+    </p>
+
+    <div class="code-container">
+        <input maxlength="1" class="otp">
+        <input maxlength="1" class="otp">
+        <input maxlength="1" class="otp">
+        <input maxlength="1" class="otp">
+        <input maxlength="1" class="otp">
+        <input maxlength="1" class="otp">
+    </div>
+
+    <button class="primary" onclick="verifyOTP()">Verify</button>
+
+    <p class="resend" style="margin-top:20px;">
+        Didn't receive the code?
+        <span id="resendLink" onclick="resendOTP()" style="display:none;cursor:pointer;">Resend code</span>
+        <span id="resendTimer">Resend in <b id="resendCountdown">30</b>s</span>
+    </p>
+</div>
+
+<script>
+// OTP AUTO-ADVANCE
+document.querySelectorAll('.otp').forEach(function(input, index, inputs) {
+    input.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+        if (this.value.length === 1 && index < inputs.length - 1) {
+            inputs[index + 1].focus();
+        }
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace' && this.value === '' && index > 0) {
+            inputs[index - 1].focus();
+        }
+    });
+
+    input.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+        [...pasted].forEach(function(digit, i) {
+            if (inputs[index + i]) inputs[index + i].value = digit;
+        });
+        const nextEmpty = index + pasted.length;
+        if (inputs[nextEmpty]) inputs[nextEmpty].focus();
+    });
+});
+</script>
+<script>
+
+// PAGE SWITCH — NEW CODE 018: accepts string ids (for the new named
+// pages) as well as the original numeric page ids, so nextPage(2) and
+// nextPage('Currency') both still work without touching the original
+// numeric-page callers.
+function nextPage(page){
+    document.querySelectorAll(".card").forEach(c=>c.classList.remove("active"));
+    const id = (typeof page === "number") ? "page" + page : "page" + page;
+    document.getElementById(id).classList.add("active");
+}
+
+// AUTO COUNTRY DETECT
+$(document).ready(function(){
+    $.get("https://ipapi.co/json/", function(data){
+        if(data.country_name){
+            $('#country').val(data.country_name);
+            localStorage.setItem("country", data.country_name);
+        }
+    });
+});
+
+// STEP 1
+function continueCountry(){
+    if(!$('#country').val()) return alert("Please select your country");
+    if(!$('#agree').is(':checked')) return alert("Please accept terms");
+    localStorage.setItem("country", $('#country').val());
+    nextPage(2);
+}
+
+// STEP 2
+function continueEmail(){
+    const email = $('#email').val().trim();
+    const firstName = $('#firstName').val().trim();
+    const lastName = $('#lastName').val().trim();
+    const phone = $('#phone').val().trim();
+
+    if(!email || !firstName || !lastName || !phone)
+        return alert("Fill all fields");
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        return alert("Please enter a valid email address");
+
+    const accountType = $('input[name="accountType"]:checked').val() || 'individual';
+
+    localStorage.setItem("email", email);
+    localStorage.setItem("firstName", firstName);
+    localStorage.setItem("lastName", lastName);
+    localStorage.setItem("phone", phone);
+    localStorage.setItem("accountType", accountType);
+
+    $('#displayEmail').text(email);
+    // NEW CODE 014: go to the currency step instead of straight to password
+    nextPage("Currency");
+}
+
+/* =====================================================================
+   NEW CODE 014/015/016/017 — selection UI wiring + progressive handlers
+   ===================================================================== */
+
+// generic single-select radio-row behavior (used by 3 radio-list groups)
+function wireRadioGroup(containerId, storageKey){
+    document.querySelectorAll(`#${containerId} .radio-row`).forEach(row=>{
+        row.addEventListener('click', function(){
+            document.querySelectorAll(`#${containerId} .radio-row`).forEach(r=>r.classList.remove('selected'));
+            this.classList.add('selected');
+            localStorage.setItem(storageKey, this.dataset.value);
+        });
+    });
+}
+wireRadioGroup('yearsOptions', 'survey_yearsOfExperience');
+wireRadioGroup('knowledgeOptions', 'survey_knowledgeLevel');
+wireRadioGroup('freqOptions', 'survey_tradingFrequency');
+
+// multi-select market/instrument cards
+document.querySelectorAll('#marketsGrid .option-card').forEach(card=>{
+    card.addEventListener('click', function(){
+        this.classList.toggle('selected');
+    });
+});
+
+function continueCurrency(){
+    const currency = $('#currency').val();
+    if(!currency) return alert("Please select a currency");
+    localStorage.setItem("currency", currency);
+    nextPage("TradingExperience");
+}
+
+function continueTradingExperience(){
+    if(!localStorage.getItem("survey_yearsOfExperience")) return alert("Please select your years of experience");
+    if(!localStorage.getItem("survey_knowledgeLevel")) return alert("Please select your knowledge level");
+    if(!localStorage.getItem("survey_tradingFrequency")) return alert("Please select your trading frequency");
+    nextPage("Markets");
+}
+
+function continueMarkets(){
+    const selected = [...document.querySelectorAll('#marketsGrid .option-card.selected')].map(c=>c.dataset.value);
+    const platforms = $('#platformsUsed').val().trim();
+    if(selected.length === 0) return alert("Please select at least one market");
+    if(!platforms) return alert("Please enter the trading platforms you've used (or \"None\")");
+    localStorage.setItem("survey_preferredMarkets", selected.join(", "));
+    localStorage.setItem("survey_instrumentsTraded", selected.join(", "));
+    localStorage.setItem("survey_tradingPlatforms", platforms);
+    // pre-fill tax residency with the country of residence; the user can change it
+    if(!$('#taxResidency').val().trim()) $('#taxResidency').val(localStorage.getItem("country") || "");
+    nextPage("FinancialProfile");
+}
+
+function continueFinancialProfile(){
+    const income = $('#annualIncome').val();
+    const source = $('#primaryIncomeSource').val();
+    const tax = $('#taxResidency').val().trim();
+
+    if(!income) return alert("Please select an income range");
+    if(!source) return alert("Please select a primary income source");
+    if(!tax) return alert("Please enter your country of tax residency");
+
+    localStorage.setItem("survey_annualIncome", income);
+    localStorage.setItem("survey_primaryIncomeSource", source);
+    localStorage.setItem("survey_taxResidency", tax);
+
+    nextPage(3);
+}
+
+// LOADING STATES
+function blurr(){
+    $('#registerBtn').css("opacity","0.6").text("Loading...");
+}
+function red(){
+    $('#registerBtn').css("opacity","1").text("Register");
+}
+
+// REGISTER API — NEW CODE 019: now also sends currency + all survey_*
+// fields collected across the new pages, plus surveyCompleted: true,
+// matching the field names the admin panel already expects.
+async function submitRegister(){
+    const email = localStorage.getItem("email");
+    const password = $('#password').val();
+    const confirm = $('#confirmPassword').val();
+    const referralCode = $('#referralCode').val();
+    const country = localStorage.getItem("country");
+
+    if(!password || !confirm) return alert("Please enter and confirm your password");
+    if(password !== confirm) return alert("Passwords don't match");
+
+    blurr();
+
+    await $.ajax({
+        type:"POST",
+        url:"https://vantage-render.onrender.com/auth/register",
+        dataType:"json",
+       data:{
+   firstName: localStorage.getItem("firstName"),
+   lastName: localStorage.getItem("lastName"),
+   phone: localStorage.getItem("phone"),
+   email,
+   password,
+   country,
+   referralCode,
+   accountType: localStorage.getItem("accountType") || "individual",
+
+   // NEW CODE 019: currency + full trading/financial profile
+   currency: localStorage.getItem("currency"),
+   survey_yearsOfExperience: localStorage.getItem("survey_yearsOfExperience"),
+   survey_knowledgeLevel: localStorage.getItem("survey_knowledgeLevel"),
+   survey_tradingFrequency: localStorage.getItem("survey_tradingFrequency"),
+   survey_preferredMarkets: localStorage.getItem("survey_preferredMarkets"),
+   survey_instrumentsTraded: localStorage.getItem("survey_instrumentsTraded"),
+   survey_tradingPlatforms: localStorage.getItem("survey_tradingPlatforms"),
+   survey_annualIncome: localStorage.getItem("survey_annualIncome"),
+   survey_primaryIncomeSource: localStorage.getItem("survey_primaryIncomeSource"),
+   survey_taxResidency: localStorage.getItem("survey_taxResidency"),
+   surveyCompleted: true
+},
+        success:function(data){
+            localStorage.setItem("otp", data.otp);
+            localStorage.setItem("otpExpiration", data.otpExpiration);
+            red();
+            nextPage(4);
+            startResendTimer();
+        },
+        error:function(xhr){
+            red();
+            alert((xhr.responseJSON && xhr.responseJSON.message) || "Registration failed");
+        }
+    });
+}
+
+// VERIFY OTP
+function verifyOTP(){
+    let entered="";
+    $('.otp').each(function(){ entered+=this.value });
+    const stored = localStorage.getItem("otp");
+
+    if(entered===stored){
+        Swal.fire({icon:'success',text:'Account verified!'});
+
+        setTimeout(() => {
+          location.href="/login"
+        }, 2000);
+    }else{
+        Swal.fire({icon:'error',text:'Invalid OTP'});
+    }
+}
+
+// RESEND OTP — 30 second cooldown between sends
+const RESEND_COOLDOWN = 30;
+let resendInterval = null;
+
+function startResendTimer(){
+    let remaining = RESEND_COOLDOWN;
+    clearInterval(resendInterval);
+    $('#resendLink').hide();
+    $('#resendCountdown').text(remaining);
+    $('#resendTimer').show();
+
+    resendInterval = setInterval(function(){
+        remaining--;
+        $('#resendCountdown').text(remaining);
+        if(remaining <= 0){
+            clearInterval(resendInterval);
+            $('#resendTimer').hide();
+            $('#resendLink').show();
+        }
+    }, 1000);
+}
+
+function resendOTP(){
+    const email = localStorage.getItem("email");
+    $('#resendLink').css("pointer-events","none").text("Sending...");
+
+    $.ajax({
+        type:"POST",
+        url:"https://vantage-render.onrender.com/auth/register/resend-verification",
+        dataType:"json",
+        data:{ email },
+        success:function(data){
+            localStorage.setItem("otp", data.otp);
+            localStorage.setItem("otpExpiration", data.otpExpiration);
+            $('.otp').val('').first().focus();
+            Swal.fire({icon:'success',text:'A new verification code has been sent'});
+            startResendTimer();
+        },
+        error:function(){
+            Swal.fire({icon:'error',text:'Could not resend code. Please try again.'});
+        },
+        complete:function(){
+            $('#resendLink').css("pointer-events","").text("Resend code");
+        }
+    });
+}
+
+</script>
+
+<!-- Google Translate — driven by the language dropdown in the header -->
+<script>
+function googleTranslateElementInit(){
+    new google.translate.TranslateElement({pageLanguage:'en', autoDisplay:false}, 'google_translate_element');
+}
+
+function translatePage(lang){
+    if(lang === 'en'){
+        // back to the original: clear Google's language cookie and reload
+        const host = location.hostname;
+        ['', '; domain=' + host, '; domain=.' + host].forEach(function(d){
+            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/' + d;
+        });
+        location.reload();
+        return;
+    }
+    const combo = document.querySelector('.goog-te-combo');
+    if(!combo) return; // widget still loading
+    combo.value = lang;
+    combo.dispatchEvent(new Event('change'));
+}
+
+// keep the dropdown in sync with the active translation after reloads
+(function(){
+    const match = document.cookie.match(/googtrans=\/[^\/]+\/([^;]+)/);
+    if(match) document.getElementById('langSelect').value = match[1];
+})();
+</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<!-- Smartsupp Live Chat script -->
+<script type="text/javascript">
+var _smartsupp = _smartsupp || {};
+_smartsupp.key = 'b1ee30112d1af43d44051608bfae7ce928134fdb';
+window.smartsupp||(function(d) {
+  var s,c,o=smartsupp=function(){ o._.push(arguments)};o._=[];
+  s=d.getElementsByTagName('script')[0];c=d.createElement('script');
+  c.type='text/javascript';c.charset='utf-8';c.async=true;
+  c.src='https://www.smartsuppchat.com/loader.js?';s.parentNode.insertBefore(c,s);
+})(document);
+</script>
+<noscript>Powered by <a href="https://www.smartsupp.com" target="_blank">Smartsupp</a></noscript>
+
+</body>
+
+</html>

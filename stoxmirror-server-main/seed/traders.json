@@ -1,0 +1,80 @@
+[
+  {
+    "name": "Alexander Mitchell",
+    "level": "Expert",
+    "photo": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=600&q=80",
+    "rating": "4.9",
+    "numberOfTrades": "1284",
+    "trades": [
+      { "symbol": "AAPL", "asset": "Apple Inc.", "type": "Long", "entryPrice": 182.50, "exitPrice": 194.20, "profit": 6.41, "status": "Closed" },
+      { "symbol": "NVDA", "asset": "NVIDIA", "type": "Long", "entryPrice": 118.40, "exitPrice": 132.60, "profit": 11.99, "status": "Closed" },
+      { "symbol": "EURUSD", "asset": "EUR/USD", "type": "Long", "entryPrice": 1.0720, "exitPrice": 1.0860, "profit": 1.31, "status": "Closed" }
+    ],
+    "commission": "10%",
+    "pnl": "+32.8%",
+    "profileId": "TRD-1001",
+    "accountLevel": "Platinum",
+    "type": "Stocks & Forex",
+    "history": [
+      { "period": "January", "return": "+7.2%" },
+      { "period": "February", "return": "+9.4%" },
+      { "period": "March", "return": "+6.8%" },
+      { "period": "April", "return": "+5.1%" }
+    ],
+    "followers": "12480",
+    "watchers": "1832",
+    "profitableTrade": "82.6%"
+  },
+  {
+    "name": "Victoria Bennett",
+    "level": "Senior",
+    "photo": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80",
+    "rating": "4.8",
+    "numberOfTrades": "967",
+    "trades": [
+      { "symbol": "BTCUSD", "asset": "Bitcoin", "type": "Long", "entryPrice": 64200, "exitPrice": 68100, "profit": 6.07, "status": "Closed" },
+      { "symbol": "ETHUSD", "asset": "Ethereum", "type": "Long", "entryPrice": 3150, "exitPrice": 3420, "profit": 8.57, "status": "Closed" },
+      { "symbol": "SOLUSD", "asset": "Solana", "type": "Long", "entryPrice": 142, "exitPrice": 158, "profit": 11.27, "status": "Closed" }
+    ],
+    "commission": "12%",
+    "pnl": "+28.4%",
+    "profileId": "TRD-1002",
+    "accountLevel": "Gold",
+    "type": "Cryptocurrency",
+    "history": [
+      { "period": "January", "return": "+5.8%" },
+      { "period": "February", "return": "+8.2%" },
+      { "period": "March", "return": "+7.4%" },
+      { "period": "April", "return": "+4.6%" }
+    ],
+    "followers": "9860",
+    "watchers": "1425",
+    "profitableTrade": "79.3%"
+  },
+  {
+    "name": "Daniel Richardson",
+    "level": "Professional",
+    "photo": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80",
+    "rating": "4.9",
+    "numberOfTrades": "1536",
+    "trades": [
+      { "symbol": "GBPUSD", "asset": "GBP/USD", "type": "Short", "entryPrice": 1.2680, "exitPrice": 1.2510, "profit": 1.34, "status": "Closed" },
+      { "symbol": "XAUUSD", "asset": "Gold", "type": "Long", "entryPrice": 2310, "exitPrice": 2375, "profit": 2.81, "status": "Closed" },
+      { "symbol": "US30", "asset": "Dow Jones", "type": "Long", "entryPrice": 38500, "exitPrice": 39200, "profit": 1.82, "status": "Closed" }
+    ],
+    "commission": "8%",
+    "pnl": "+24.6%",
+    "profileId": "TRD-1003",
+    "accountLevel": "Diamond",
+    "type": "Forex & Indices",
+    "history": [
+      { "period": "January", "return": "+6.1%" },
+      { "period": "February", "return": "+5.7%" },
+      { "period": "March", "return": "+8.3%" },
+      { "period": "April", "return": "+3.9%" }
+    ],
+    "followers": "15720",
+    "watchers": "2160",
+    "profitableTrade": "81.4%"
+  }
+]

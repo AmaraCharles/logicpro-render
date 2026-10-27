@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: smartgen-render
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
