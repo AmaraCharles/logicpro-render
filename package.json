@@ -1,4 +1,13 @@
 {
+  "name": "logicpro-root",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "heroku-postbuild": "npm install --prefix stoxmirror-server-main --omit=dev",
+    "start": "npm start --prefix stoxmirror-server-main"
+  },
   "dependencies": {
     "resend": "^6.2.2"
   }
